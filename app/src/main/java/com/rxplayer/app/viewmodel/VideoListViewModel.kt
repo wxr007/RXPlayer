@@ -21,11 +21,36 @@ class VideoListViewModel @Inject constructor(
     private val _videos = MutableStateFlow<List<Video>>(emptyList())
     val videos: StateFlow<List<Video>> = _videos
 
+    private val _displayMode = MutableStateFlow(false)
+    val displayMode: StateFlow<Boolean> = _displayMode
+
     private var synced = false
+    private var currentFolderPath = ""
 
     fun loadVideos(folderPath: String) {
+        currentFolderPath = folderPath
         observeDb(folderPath)
         backgroundSync(folderPath)
+        loadDisplayMode(folderPath)
+    }
+
+    fun toggleDisplayMode() {
+        val newMode = !_displayMode.value
+        _displayMode.value = newMode
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                repository.setDisplayMode(currentFolderPath, if (newMode) 1 else 0)
+            }
+        }
+    }
+
+    private fun loadDisplayMode(folderPath: String) {
+        viewModelScope.launch {
+            val mode = withContext(Dispatchers.IO) {
+                repository.getDisplayMode(folderPath)
+            }
+            _displayMode.value = mode == 1
+        }
     }
 
     private fun observeDb(folderPath: String) {

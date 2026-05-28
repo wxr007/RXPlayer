@@ -1,5 +1,8 @@
 package com.rxplayer.app.navigation
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
@@ -94,7 +97,11 @@ fun RXPlayerNavHost() {
         NavHost(
             navController = navController,
             startDestination = Route.FolderList.route,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.padding(innerPadding),
+            enterTransition = { fadeIn(tween(0)) },
+            exitTransition = { fadeOut(tween(0)) },
+            popEnterTransition = { fadeIn(tween(0)) },
+            popExitTransition = { fadeOut(tween(0)) }
         ) {
             composable(Route.FolderList.route) {
                 HomeScreen(

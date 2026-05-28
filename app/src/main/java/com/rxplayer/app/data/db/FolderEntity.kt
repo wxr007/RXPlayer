@@ -9,5 +9,6 @@ data class FolderEntity(
     val name: String,
     val videoCount: Int,
     val coverPaths: String,
-    val addedAt: Long
+    val addedAt: Long,
+    val displayMode: Int = 0
 )

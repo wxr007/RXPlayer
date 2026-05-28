@@ -256,16 +256,6 @@ private fun ThumbnailCell(path: String?, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     if (path != null) {
         val file = remember(path) { File(path) }
-        val cache = remember { ThumbnailCache(context) }
-
-        LaunchedEffect(file) {
-            if (!file.exists()) {
-                withContext(Dispatchers.IO) {
-                    cache.getThumbnail(path)
-                }
-            }
-        }
-
         if (file.exists()) {
             AsyncImage(
                 model = ImageRequest.Builder(context)
@@ -281,9 +271,11 @@ private fun ThumbnailCell(path: String?, modifier: Modifier = Modifier) {
                 modifier = modifier.fillMaxHeight(),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp
+                Icon(
+                    imageVector = Icons.Default.Folder,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(0.5f),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                 )
             }
         }

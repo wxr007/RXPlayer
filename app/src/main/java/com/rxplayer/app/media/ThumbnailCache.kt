@@ -27,6 +27,10 @@ class ThumbnailCache(private val context: Context) {
             return@withContext BitmapFactory.decodeFile(file.absolutePath)
         }
 
+        if (!fileExists(videoPath)) {
+            return@withContext null
+        }
+
         val bitmap = decodeWithRetriever(videoPath, maxWidth)
 
         if (bitmap != null) {
@@ -37,19 +41,31 @@ class ThumbnailCache(private val context: Context) {
         bitmap
     }
 
-    private fun decodeWithRetriever(videoPath: String, maxWidth: Int): Bitmap? {
+    private fun fileExists(videoPath: String): Boolean {
         return try {
-            val retriever = MediaMetadataRetriever()
+            if (videoPath.startsWith("content://")) {
+                context.contentResolver.openFileDescriptor(Uri.parse(videoPath), "r")?.use { true } ?: false
+            } else {
+                File(videoPath).exists()
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun decodeWithRetriever(videoPath: String, maxWidth: Int): Bitmap? {
+        val retriever = MediaMetadataRetriever()
+        return try {
             retriever.setDataSource(context, Uri.parse(videoPath))
             val frame = retriever.frameAtTime ?: return null
-            retriever.release()
-
             val (newWidth, newHeight) = scaleSize(frame.width, frame.height, maxWidth)
             val scaled = Bitmap.createScaledBitmap(frame, newWidth, newHeight, true)
             frame.recycle()
             scaled
         } catch (_: Exception) {
             null
+        } finally {
+            retriever.release()
         }
     }
 

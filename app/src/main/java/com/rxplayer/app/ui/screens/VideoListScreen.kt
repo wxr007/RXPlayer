@@ -65,7 +65,7 @@ fun VideoListScreen(
         folderPath.substringAfterLast("/")
     }
 
-    var cropMode by remember { mutableStateOf(false) }
+    val cropMode by viewModel.displayMode.collectAsState()
 
     LaunchedEffect(folderPath) {
         viewModel.loadVideos(folderPath)
@@ -81,7 +81,7 @@ fun VideoListScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { cropMode = !cropMode }) {
+                    IconButton(onClick = { viewModel.toggleDisplayMode() }) {
                         Icon(
                             imageVector = if (cropMode) Icons.Default.Crop else Icons.Default.FitScreen,
                             contentDescription = if (cropMode) "切换为留白显示" else "切换为剪裁显示"
@@ -121,8 +121,12 @@ private fun VideoGridItem(
     var thumbnail by remember(video.filePath) { mutableStateOf<Bitmap?>(null) }
 
     LaunchedEffect(video.filePath) {
-        val cache = ThumbnailCache(context)
-        thumbnail = cache.getThumbnail(video.filePath)
+        try {
+            val cache = ThumbnailCache(context)
+            thumbnail = cache.getThumbnail(video.filePath)
+        } catch (_: Exception) {
+            thumbnail = null
+        }
     }
 
     Card(

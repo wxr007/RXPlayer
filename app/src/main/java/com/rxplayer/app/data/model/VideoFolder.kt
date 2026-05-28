@@ -6,5 +6,6 @@ data class VideoFolder(
     val path: String,
     val videoCount: Int,
     val coverPaths: List<String>,
-    val addedAt: Long = System.currentTimeMillis()
+    val addedAt: Long = System.currentTimeMillis(),
+    val displayMode: Int = 0
 )

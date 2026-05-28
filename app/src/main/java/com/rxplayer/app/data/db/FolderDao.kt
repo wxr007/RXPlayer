@@ -11,6 +11,15 @@ interface FolderDao {
     @Query("SELECT * FROM folders ORDER BY addedAt DESC")
     fun getAllFolders(): Flow<List<FolderEntity>>
 
+    @Query("SELECT * FROM folders")
+    suspend fun getAllFoldersSnapshot(): List<FolderEntity>
+
+    @Query("SELECT * FROM folders WHERE `path` = :path LIMIT 1")
+    suspend fun getByPath(path: String): FolderEntity?
+
+    @Query("UPDATE folders SET displayMode = :mode WHERE `path` = :path")
+    suspend fun updateDisplayMode(path: String, mode: Int)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(folders: List<FolderEntity>)
 

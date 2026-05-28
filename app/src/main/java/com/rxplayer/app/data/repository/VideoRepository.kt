@@ -36,11 +36,15 @@ class VideoRepository @Inject constructor(
     }
 
     suspend fun syncFolders() {
+        val modeMap = folderDao.getAllFoldersSnapshot().associate { it.path to it.displayMode }
         val mediaStoreFolders = getVideoFolders()
         val safUris = getSavedSafUris()
         val safFolders = safUris.mapNotNull { scanSafFolder(it) }
         val allFolders = (mediaStoreFolders + safFolders).map { it.toEntity() }
         folderDao.insertAll(allFolders)
+        modeMap.forEach { (path, mode) ->
+            if (mode != 0) folderDao.updateDisplayMode(path, mode)
+        }
     }
 
     suspend fun insertFolder(folder: VideoFolder) {
@@ -49,6 +53,14 @@ class VideoRepository @Inject constructor(
 
     suspend fun deleteFolder(folderPath: String) {
         folderDao.deleteByPath(folderPath)
+    }
+
+    suspend fun getDisplayMode(folderPath: String): Int {
+        return folderDao.getByPath(folderPath)?.displayMode ?: 0
+    }
+
+    suspend fun setDisplayMode(folderPath: String, mode: Int) {
+        folderDao.updateDisplayMode(folderPath, mode)
     }
 
     suspend fun scanSafFolderWithProgress(
@@ -134,7 +146,7 @@ class VideoRepository @Inject constructor(
             queryMediaStore(folderPath)
         }
         val entities = videos.map { it.toEntity(folderPath) }
-        videoDao.insertAll(entities)
+        videoDao.replaceFolder(folderPath, entities)
     }
 
     private suspend fun scanSafFolder(safUri: String): VideoFolder? {
@@ -197,7 +209,7 @@ class VideoRepository @Inject constructor(
     )
 
     private fun scanVideoFiles(dir: DocumentFile, result: MutableList<DocumentFile>) {
-        val files = dir.listFiles()
+        val files = dir.listFiles() ?: return
         for (file in files) {
             if (file.isDirectory) {
                 scanVideoFiles(file, result)
@@ -285,7 +297,8 @@ private fun VideoFolder.toEntity() = com.rxplayer.app.data.db.FolderEntity(
     name = name,
     videoCount = videoCount,
     coverPaths = coverPaths.joinToString("\n"),
-    addedAt = addedAt
+    addedAt = addedAt,
+    displayMode = displayMode
 )
 
 private fun com.rxplayer.app.data.db.FolderEntity.toModel() = VideoFolder(
@@ -293,5 +306,6 @@ private fun com.rxplayer.app.data.db.FolderEntity.toModel() = VideoFolder(
     path = path,
     videoCount = videoCount,
     coverPaths = coverPaths.split("\n").filter { it.isNotEmpty() },
-    addedAt = addedAt
+    addedAt = addedAt,
+    displayMode = displayMode
 )
