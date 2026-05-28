@@ -24,6 +24,9 @@ class VideoListViewModel @Inject constructor(
     private val _displayMode = MutableStateFlow(false)
     val displayMode: StateFlow<Boolean> = _displayMode
 
+    private val _gridColumns = MutableStateFlow(2)
+    val gridColumns: StateFlow<Int> = _gridColumns
+
     private var synced = false
     private var currentFolderPath = ""
 
@@ -42,6 +45,10 @@ class VideoListViewModel @Inject constructor(
                 repository.setDisplayMode(currentFolderPath, if (newMode) 1 else 0)
             }
         }
+    }
+
+    fun toggleGridColumns() {
+        _gridColumns.value = if (_gridColumns.value == 2) 4 else 2
     }
 
     private fun loadDisplayMode(folderPath: String) {

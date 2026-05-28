@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.FitScreen
+import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
@@ -64,6 +65,7 @@ fun VideoListScreen(
     }
 
     val cropMode by viewModel.displayMode.collectAsState()
+    val gridColumns by viewModel.gridColumns.collectAsState()
 
     LaunchedEffect(folderPath) {
         viewModel.loadVideos(folderPath)
@@ -75,6 +77,12 @@ fun VideoListScreen(
                 title = folderName,
                 onBack = onBack,
                 actions = {
+                    IconButton(onClick = { viewModel.toggleGridColumns() }) {
+                        Icon(
+                            imageVector = Icons.Default.GridOn,
+                            contentDescription = if (gridColumns == 2) "切换为4列" else "切换为2列"
+                        )
+                    }
                     IconButton(onClick = { viewModel.toggleDisplayMode() }) {
                         Icon(
                             imageVector = if (cropMode) Icons.Default.Crop else Icons.Default.FitScreen,
@@ -86,7 +94,7 @@ fun VideoListScreen(
         }
     ) { innerPadding ->
         LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
+            columns = GridCells.Fixed(gridColumns),
             contentPadding = PaddingValues(12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),

@@ -78,6 +78,10 @@ fun PlayerScreen(
     var isFullScreen by remember { mutableStateOf(false) }
     var showOverlay by remember { mutableStateOf(true) }
     var showCenterIcon by remember { mutableStateOf(false) }
+    var showSeekIndicator by remember { mutableStateOf("") }
+    var sliderProgress by remember { mutableFloatStateOf(0f) }
+    var isDraggingSlider by remember { mutableStateOf(false) }
+    var overlayTimerKey by remember { mutableStateOf(0) }
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
 
     val decodedPath = Uri.decode(videoPath)
@@ -95,6 +99,9 @@ fun PlayerScreen(
         while (true) {
             currentPosition = player.currentPosition
             totalDuration = player.duration.coerceAtLeast(0)
+            if (!isDraggingSlider && totalDuration > 0) {
+                sliderProgress = currentPosition.toFloat() / totalDuration
+            }
             delay(200)
         }
     }
@@ -106,10 +113,19 @@ fun PlayerScreen(
         }
     }
 
-    LaunchedEffect(isFullScreen, showOverlay) {
+    LaunchedEffect(showSeekIndicator) {
+        if (showSeekIndicator.isNotEmpty()) {
+            delay(800)
+            showSeekIndicator = ""
+        }
+    }
+
+    LaunchedEffect(isFullScreen, showOverlay, overlayTimerKey) {
         if (isFullScreen && showOverlay) {
             delay(3000)
-            showOverlay = false
+            if (!isDraggingSlider) {
+                showOverlay = false
+            }
         }
     }
 
@@ -182,17 +198,6 @@ fun PlayerScreen(
                         else Modifier.aspectRatio(16f / 9f)
                     )
                     .background(MaterialTheme.colorScheme.background)
-                    .gestureHandler(
-                        player = player,
-                        isFullScreen = isFullScreen,
-                        showOverlay = showOverlay,
-                        onDoubleTap = {
-                            player.playWhenReady = !player.playWhenReady
-                            showCenterIcon = true
-                        },
-                        onSingleTap = { showOverlay = !showOverlay },
-                        onSpeedChange = { speed -> playbackSpeed = speed }
-                    )
             ) {
                 AndroidView(
                     factory = { ctx ->
@@ -203,7 +208,27 @@ fun PlayerScreen(
                             resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                         }
                     },
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .gestureHandler(
+                            player = player,
+                            isFullScreen = isFullScreen,
+                            showOverlay = showOverlay,
+                            onDoubleTap = { xFraction ->
+                                if (xFraction < 0.25f) {
+                                    player.seekTo((player.currentPosition - 10000).coerceAtLeast(0))
+                                    showSeekIndicator = "-10s"
+                                } else if (xFraction > 0.75f) {
+                                    player.seekTo((player.currentPosition + 10000).coerceAtMost(totalDuration))
+                                    showSeekIndicator = "+10s"
+                                } else {
+                                    player.playWhenReady = !player.playWhenReady
+                                    showCenterIcon = true
+                                }
+                            },
+                            onSingleTap = { showOverlay = !showOverlay },
+                            onSpeedChange = { speed -> playbackSpeed = speed }
+                        )
                 )
 
 
@@ -218,6 +243,22 @@ fun PlayerScreen(
                             contentDescription = null,
                             modifier = Modifier.size(56.dp),
                             tint = Color.White
+                        )
+                    }
+                }
+
+                if (showSeekIndicator.isNotEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        contentAlignment = if (showSeekIndicator.startsWith("+")) Alignment.CenterEnd else Alignment.CenterStart
+                    ) {
+                        Text(
+                            text = showSeekIndicator,
+                            color = Color.White,
+                            fontSize = 36.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
@@ -254,6 +295,30 @@ fun PlayerScreen(
                         )
                     }
                 }
+
+                if (isFullScreen && showOverlay) {
+                    Slider(
+                        value = sliderProgress,
+                        onValueChange = { ratio ->
+                            isDraggingSlider = true
+                            sliderProgress = ratio
+                            player.seekTo((ratio * totalDuration).toLong())
+                        },
+                        onValueChangeFinished = {
+                            isDraggingSlider = false
+                            overlayTimerKey++
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 64.dp)
+                            .align(Alignment.BottomCenter),
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color.White,
+                            activeTrackColor = Color.White.copy(alpha = 0.8f),
+                            inactiveTrackColor = Color.White.copy(alpha = 0.2f)
+                        )
+                    )
+                }
             }
 
             if (!isFullScreen) {
@@ -270,9 +335,14 @@ fun PlayerScreen(
                     )
 
                     Slider(
-                        value = if (totalDuration > 0) currentPosition.toFloat() / totalDuration else 0f,
+                        value = sliderProgress,
                         onValueChange = { ratio ->
+                            isDraggingSlider = true
+                            sliderProgress = ratio
                             player.seekTo((ratio * totalDuration).toLong())
+                        },
+                        onValueChangeFinished = {
+                            isDraggingSlider = false
                         },
                         modifier = Modifier.weight(1f),
                         colors = SliderDefaults.colors(
@@ -313,13 +383,15 @@ private fun Modifier.gestureHandler(
     player: ExoPlayer,
     isFullScreen: Boolean,
     showOverlay: Boolean,
-    onDoubleTap: () -> Unit,
+    onDoubleTap: (xFraction: Float) -> Unit,
     onSingleTap: () -> Unit,
     onSpeedChange: (Float) -> Unit
 ): Modifier = this.then(
     pointerInput(Unit) {
         awaitEachGesture {
-            awaitFirstDown()
+            val down = awaitFirstDown()
+            val width = size.width.toFloat()
+            val xFraction = down.position.x / width
             val longPressMs = viewConfiguration.longPressTimeoutMillis
 
             val up = withTimeoutOrNull(longPressMs) {
@@ -327,13 +399,13 @@ private fun Modifier.gestureHandler(
             }
 
             if (up != null) {
-                val secondUp = withTimeoutOrNull(viewConfiguration.doubleTapTimeoutMillis) {
+                val secondDown = withTimeoutOrNull(viewConfiguration.doubleTapTimeoutMillis) {
                     awaitFirstDown()
-                    waitForUpOrCancellation()
-                    true
                 }
-                if (secondUp != null) {
-                    onDoubleTap()
+                if (secondDown != null) {
+                    val xFraction2 = secondDown.position.x / width
+                    waitForUpOrCancellation()
+                    onDoubleTap(xFraction2)
                 } else {
                     onSingleTap()
                 }

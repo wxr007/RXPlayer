@@ -55,9 +55,10 @@ fun CompactTopAppBar(
                     .padding(start = if (onBack != null) 4.dp else 16.dp)
             )
             if (actions != null) {
-                Box(modifier = Modifier.height(40.dp), contentAlignment = Alignment.Center) {
-                    actions()
-                }
+                Row(
+                    modifier = Modifier.height(40.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) { actions() }
             }
         }
     }
