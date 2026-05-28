@@ -11,11 +11,13 @@ import com.rxplayer.app.data.db.VideoDao
 import com.rxplayer.app.data.db.VideoEntity
 import com.rxplayer.app.data.model.Video
 import com.rxplayer.app.data.model.VideoFolder
+import com.rxplayer.app.media.ThumbnailCache
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,6 +27,8 @@ class VideoRepository @Inject constructor(
     private val videoDao: VideoDao,
     private val folderDao: FolderDao
 ) {
+    private val thumbnailCache = ThumbnailCache(context)
+
     fun observeFolders(): Flow<List<VideoFolder>> {
         return folderDao.getAllFolders().map { entities ->
             entities.map { it.toModel() }
@@ -39,7 +43,53 @@ class VideoRepository @Inject constructor(
         folderDao.insertAll(allFolders)
     }
 
-    private fun getVideoFolders(): List<VideoFolder> {
+    suspend fun insertFolder(folder: VideoFolder) {
+        folderDao.insertAll(listOf(folder.toEntity()))
+    }
+
+    suspend fun deleteFolder(folderPath: String) {
+        folderDao.deleteByPath(folderPath)
+    }
+
+    suspend fun scanSafFolderWithProgress(
+        safUri: String,
+        onProgress: (Float) -> Unit
+    ): VideoFolder? {
+        val uri = Uri.parse(safUri)
+        val root = DocumentFile.fromTreeUri(context, uri) ?: return null
+        val videoFiles = mutableListOf<DocumentFile>()
+        scanVideoFiles(root, videoFiles)
+        val total = videoFiles.size.coerceAtLeast(1)
+
+        val coverPaths = mutableListOf<String>()
+        videoFiles.forEachIndexed { index, file ->
+            val videoPath = file.uri.toString()
+            if (coverPaths.size < 4) {
+                withContext(Dispatchers.IO) {
+                    thumbnailCache.getThumbnail(videoPath)
+                }
+                coverPaths.add(thumbnailCache.getCachedPath(videoPath))
+            }
+            onProgress((index + 1).toFloat() / total * 0.9f)
+        }
+
+        val name = root.name ?: safFolderDisplayName(safUri)
+        onProgress(0.92f)
+        val folder = VideoFolder(
+            name = name,
+            path = safUri,
+            videoCount = videoFiles.size,
+            coverPaths = coverPaths,
+            addedAt = System.currentTimeMillis()
+        )
+        withContext(Dispatchers.IO) {
+            folderDao.insertAll(listOf(folder.toEntity()))
+        }
+        onProgress(1f)
+        return folder
+    }
+
+    private suspend fun getVideoFolders(): List<VideoFolder> {
         val folders = mutableMapOf<String, MutableList<String>>()
         val uri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
         val projection = arrayOf(Media.DATA)
@@ -52,11 +102,15 @@ class VideoRepository @Inject constructor(
             }
         }
         return folders.map { (path, files) ->
+            val coverPaths = files.take(4).map { videoPath ->
+                thumbnailCache.getThumbnail(videoPath)
+                thumbnailCache.getCachedPath(videoPath)
+            }
             VideoFolder(
                 name = path.substringAfterLast("/"),
                 path = path,
                 videoCount = files.size,
-                coverPaths = files.take(4),
+                coverPaths = coverPaths,
                 addedAt = System.currentTimeMillis()
             )
         }
@@ -83,17 +137,22 @@ class VideoRepository @Inject constructor(
         videoDao.insertAll(entities)
     }
 
-    private fun scanSafFolder(safUri: String): VideoFolder? {
+    private suspend fun scanSafFolder(safUri: String): VideoFolder? {
         val uri = Uri.parse(safUri)
         val root = DocumentFile.fromTreeUri(context, uri) ?: return null
         val videoFiles = mutableListOf<DocumentFile>()
         scanVideoFiles(root, videoFiles)
         val name = root.name ?: safFolderDisplayName(safUri)
+        val coverPaths = videoFiles.take(4).map { file ->
+            val videoPath = file.uri.toString()
+            thumbnailCache.getThumbnail(videoPath)
+            thumbnailCache.getCachedPath(videoPath)
+        }
         return VideoFolder(
             name = name,
             path = safUri,
             videoCount = videoFiles.size,
-            coverPaths = videoFiles.take(4).map { it.uri.toString() },
+            coverPaths = coverPaths,
             addedAt = System.currentTimeMillis()
         )
     }

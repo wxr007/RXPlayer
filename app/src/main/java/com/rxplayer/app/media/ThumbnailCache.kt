@@ -59,6 +59,10 @@ class ThumbnailCache(private val context: Context) {
         return maxWidth to (origHeight * ratio).toInt()
     }
 
+    fun getCachedPath(videoPath: String): String {
+        return thumbnailFile(videoPath).absolutePath
+    }
+
     fun clearCache() {
         cacheDir.listFiles()?.forEach { it.delete() }
     }

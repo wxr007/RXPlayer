@@ -26,6 +26,9 @@ class HomeViewModel @Inject constructor(
     private val _folders = MutableStateFlow<List<VideoFolder>>(emptyList())
     val folders: StateFlow<List<VideoFolder>> = _folders
 
+    private val _scanProgress = MutableStateFlow<Map<String, Float>>(emptyMap())
+    val scanProgress: StateFlow<Map<String, Float>> = _scanProgress
+
     private var synced = false
 
     init {
@@ -54,6 +57,7 @@ class HomeViewModel @Inject constructor(
     }
 
     fun addFolder(uri: Uri) {
+        val uriString = uri.toString()
         try {
             context.contentResolver.takePersistableUriPermission(
                 uri,
@@ -63,11 +67,47 @@ class HomeViewModel @Inject constructor(
         }
         val prefs = context.getSharedPreferences("saf_folders", Context.MODE_PRIVATE)
         val existing = prefs.getStringSet("uris", emptySet()) ?: emptySet()
-        prefs.edit().putStringSet("uris", existing + uri.toString()).apply()
+        prefs.edit().putStringSet("uris", existing + uriString).apply()
+
+        viewModelScope.launch {
+            val name = safFolderDisplayName(uriString)
+            val placeholder = VideoFolder(
+                name = name,
+                path = uriString,
+                videoCount = 0,
+                coverPaths = emptyList(),
+                addedAt = System.currentTimeMillis()
+            )
+            withContext(Dispatchers.IO) {
+                repository.insertFolder(placeholder)
+            }
+
+            _scanProgress.value = _scanProgress.value + (uriString to 0f)
+            withContext(Dispatchers.IO) {
+                repository.scanSafFolderWithProgress(uriString) { pct ->
+                    _scanProgress.value = _scanProgress.value + (uriString to pct)
+                }
+            }
+            _scanProgress.value = _scanProgress.value - uriString
+        }
+    }
+
+    fun deleteFolder(folderPath: String) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                repository.syncFolders()
+                repository.deleteFolder(folderPath)
+            }
+            if (folderPath.startsWith("content://")) {
+                val prefs = context.getSharedPreferences("saf_folders", Context.MODE_PRIVATE)
+                val existing = prefs.getStringSet("uris", emptySet()) ?: emptySet()
+                prefs.edit().putStringSet("uris", existing - folderPath).apply()
             }
         }
+    }
+
+    private fun safFolderDisplayName(safUri: String): String {
+        val lastSegment = Uri.parse(safUri).lastPathSegment ?: return safUri.substringAfterLast("/")
+        val path = lastSegment.substringAfter(":")
+        return path.substringAfterLast("/").ifEmpty { path }
     }
 }
