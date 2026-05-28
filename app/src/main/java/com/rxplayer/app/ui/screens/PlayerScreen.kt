@@ -5,6 +5,8 @@ import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -15,6 +17,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -24,8 +29,10 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -37,8 +44,6 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.rxplayer.app.ui.components.CompactTopAppBar
-import com.rxplayer.app.ui.components.SceneAnalysisProgress
-import com.rxplayer.app.ui.components.TimelinePreviewBar
 import com.rxplayer.app.viewmodel.PlayerViewModel
 import kotlinx.coroutines.delay
 
@@ -54,6 +59,7 @@ fun PlayerScreen(
     val progress by viewModel.analyzingProgress.collectAsState()
     var currentPosition by remember { mutableLongStateOf(0L) }
     var isFullScreen by remember { mutableStateOf(false) }
+    var totalDuration by remember { mutableLongStateOf(0L) }
 
     val decodedPath = Uri.decode(videoPath)
     val videoName = decodedPath.substringAfterLast("/")
@@ -69,6 +75,7 @@ fun PlayerScreen(
     LaunchedEffect(player) {
         while (true) {
             currentPosition = player.currentPosition
+            totalDuration = player.duration.coerceAtLeast(0)
             delay(200)
         }
     }
@@ -105,7 +112,7 @@ fun PlayerScreen(
                     actions = {
                         IconButton(onClick = toggleFullScreen) {
                             Icon(
-                                imageVector = Icons.Default.Fullscreen,
+                                imageVector = if (isFullScreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
                                 contentDescription = "全屏"
                             )
                         }
@@ -122,7 +129,7 @@ fun PlayerScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
+                    .aspectRatio(16f / 9f)
                     .background(MaterialTheme.colorScheme.background)
             ) {
                 AndroidView(
@@ -130,7 +137,7 @@ fun PlayerScreen(
                         val exoPlayer = player
                         PlayerView(ctx).apply {
                             this.player = exoPlayer
-                            useController = true
+                            useController = false
                             resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                         }
                     },
@@ -139,22 +146,47 @@ fun PlayerScreen(
             }
 
             if (!isFullScreen) {
-                if (progress != null) {
-                    SceneAnalysisProgress(
-                        progress = progress!!,
-                        modifier = Modifier.fillMaxWidth()
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = formatDuration(currentPosition),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+
+                    Slider(
+                        value = if (totalDuration > 0) currentPosition.toFloat() / totalDuration else 0f,
+                        onValueChange = { ratio ->
+                            player.seekTo((ratio * totalDuration).toLong())
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = SliderDefaults.colors(
+                            thumbColor = MaterialTheme.colorScheme.primary,
+                            activeTrackColor = MaterialTheme.colorScheme.primary,
+                            inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    )
+
+                    Text(
+                        text = formatDuration(totalDuration),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(start = 8.dp)
                     )
                 }
-
-                TimelinePreviewBar(
-                    scenes = scenes,
-                    currentPosition = currentPosition,
-                    onSceneClick = { timestampMs ->
-                        player.seekTo(timestampMs)
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
             }
         }
     }
+}
+
+private fun formatDuration(durationMs: Long): String {
+    val totalSec = durationMs / 1000
+    val h = totalSec / 3600
+    val m = (totalSec % 3600) / 60
+    val s = totalSec % 60
+    return if (h > 0) "%02d:%02d:%02d".format(h, m, s)
+    else "%02d:%02d".format(m, s)
 }
