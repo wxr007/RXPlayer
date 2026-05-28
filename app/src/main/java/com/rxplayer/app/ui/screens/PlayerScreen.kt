@@ -3,9 +3,11 @@ package com.rxplayer.app.ui.screens
 import android.app.Activity
 import android.content.pm.ActivityInfo
 import android.net.Uri
+import android.util.Log
 import android.view.WindowManager
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
@@ -30,10 +33,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -61,6 +67,8 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.rxplayer.app.ui.components.CompactTopAppBar
+import com.rxplayer.app.ui.components.SceneAnalysisProgress
+import com.rxplayer.app.ui.components.TimelinePreviewBar
 import com.rxplayer.app.viewmodel.PlayerViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
@@ -83,6 +91,12 @@ fun PlayerScreen(
     var isDraggingSlider by remember { mutableStateOf(false) }
     var overlayTimerKey by remember { mutableStateOf(0) }
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    val scenes by viewModel.scenes.collectAsState()
+    val analyzingProgress by viewModel.analyzingProgress.collectAsState()
+    val isAnalyzing by viewModel.isAnalyzing.collectAsState()
 
     val decodedPath = Uri.decode(videoPath)
     val videoName = decodedPath.substringAfterLast("/")
@@ -180,10 +194,25 @@ fun PlayerScreen(
             if (!isFullScreen) {
                 CompactTopAppBar(
                     title = videoName,
-                    onBack = onBack
+                    onBack = onBack,
+                    actions = {
+                        IconButton(
+                            onClick = {
+                                Log.d("RXPlayer", "TopBar analyze clicked")
+                                viewModel.triggerAnalysis()
+                            },
+                            enabled = !isAnalyzing
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "视频分析"
+                            )
+                        }
+                    }
                 )
             }
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -322,6 +351,50 @@ fun PlayerScreen(
             }
 
             if (!isFullScreen) {
+                analyzingProgress?.let { progress ->
+                    SceneAnalysisProgress(progress = progress)
+                }
+
+                if (scenes.isEmpty() && analyzingProgress == null) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        IconButton(
+                            onClick = {
+                                Log.d("RXPlayer", "Analyze button clicked")
+                                viewModel.triggerAnalysis()
+                            },
+                            enabled = !isAnalyzing
+                        ) {
+                            Icon(
+                                imageVector = if (isAnalyzing) Icons.Default.Refresh else Icons.Default.Refresh,
+                                contentDescription = "分析场景",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Text(
+                            text = if (isAnalyzing) "分析中..." else "分析镜头切换",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .clickable(enabled = !isAnalyzing) {
+                                    Log.d("RXPlayer", "Analyze text clicked")
+                                    viewModel.triggerAnalysis()
+                                }
+                                .align(Alignment.CenterVertically)
+                        )
+                    }
+                }
+
+                TimelinePreviewBar(
+                    scenes = scenes,
+                    currentPosition = currentPosition,
+                    onSceneClick = { timestampMs -> player.seekTo(timestampMs) }
+                )
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()

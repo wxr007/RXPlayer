@@ -2,6 +2,7 @@ package com.rxplayer.app.media
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import com.rxplayer.app.data.db.ScenePointDao
 import com.rxplayer.app.data.db.ScenePointEntity
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -26,6 +27,9 @@ class SceneAnalyzer @Inject constructor(
     private val _analyzingProgress = MutableStateFlow<Float?>(null)
     val analyzingProgress: StateFlow<Float?> = _analyzingProgress
 
+    private val _isAnalyzing = MutableStateFlow(false)
+    val isAnalyzing: StateFlow<Boolean> = _isAnalyzing
+
     fun observeScenes(videoPath: String): Flow<List<SceneData>> {
         return scenePointDao.getScenesForVideo(videoPath).map { entities ->
             entities.map { entity ->
@@ -38,15 +42,26 @@ class SceneAnalyzer @Inject constructor(
         }
     }
 
-    fun analyzeVideo(videoPath: String) {
+    fun analyzeVideo(videoPath: String, force: Boolean = false) {
+        Log.d("RXPlayer", "analyzeVideo called, force=$force, videoPath=$videoPath, isAnalyzing=${_isAnalyzing.value}")
+        if (_isAnalyzing.value) {
+            Log.d("RXPlayer", "analyzeVideo: already analyzing, skipping")
+            return
+        }
         scope.launch {
-            val count = scenePointDao.getSceneCount(videoPath)
-            if (count > 0) return@launch
+            if (!force) {
+                val count = scenePointDao.getSceneCount(videoPath)
+                Log.d("RXPlayer", "analyzeVideo: existing scene count=$count")
+                if (count > 0) return@launch
+            }
 
+            Log.d("RXPlayer", "analyzeVideo: starting analysis")
+            _isAnalyzing.value = true
             scenePointDao.deleteScenesForVideo(videoPath)
             _analyzingProgress.value = 0f
 
             val uri = Uri.parse(videoPath)
+            Log.d("RXPlayer", "analyzeVideo: uri=$uri, scheme=${uri.scheme}, path=${uri.path}")
             val scenes = detector.detectScenes(
                 uri = uri,
                 onProgress = { progress ->
@@ -54,6 +69,7 @@ class SceneAnalyzer @Inject constructor(
                 }
             )
 
+            Log.d("RXPlayer", "analyzeVideo: detected ${scenes.size} scenes")
             val entities = scenes.map { scene ->
                 ScenePointEntity(
                     videoPath = videoPath,
@@ -66,6 +82,8 @@ class SceneAnalyzer @Inject constructor(
                 scenePointDao.insertAll(entities)
             }
             _analyzingProgress.value = null
+            _isAnalyzing.value = false
+            Log.d("RXPlayer", "analyzeVideo: done")
         }
     }
 }

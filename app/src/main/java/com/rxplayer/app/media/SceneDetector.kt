@@ -26,7 +26,11 @@ class SceneDetector(private val context: Context) {
 
         val retriever = MediaMetadataRetriever()
         try {
-            retriever.setDataSource(context, uri)
+            if (uri.scheme != null) {
+                retriever.setDataSource(context, uri)
+            } else {
+                retriever.setDataSource(uri.path, null)
+            }
         } catch (e: Exception) {
             return@withContext emptyList()
         }
