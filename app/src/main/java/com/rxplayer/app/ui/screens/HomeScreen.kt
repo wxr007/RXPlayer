@@ -26,14 +26,12 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -53,13 +51,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.rxplayer.app.data.model.VideoFolder
-import com.rxplayer.app.media.ThumbnailCache
+import com.rxplayer.app.ui.components.CompactTopAppBar
 import com.rxplayer.app.viewmodel.HomeViewModel
 import java.io.File
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onFolderClick: (String) -> Unit,
@@ -99,8 +94,8 @@ fun HomeScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("视频文件夹") },
+            CompactTopAppBar(
+                title = "视频文件夹",
                 actions = {
                     IconButton(onClick = { folderPickerLauncher.launch(null) }) {
                         Icon(Icons.Default.Add, contentDescription = "添加文件夹")

@@ -23,13 +23,11 @@ import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.FitScreen
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -48,9 +46,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rxplayer.app.data.model.Video
 import com.rxplayer.app.media.ThumbnailCache
+import com.rxplayer.app.ui.components.CompactTopAppBar
 import com.rxplayer.app.viewmodel.VideoListViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VideoListScreen(
     folderPath: String,
@@ -73,13 +71,9 @@ fun VideoListScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(folderName) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                },
+            CompactTopAppBar(
+                title = folderName,
+                onBack = onBack,
                 actions = {
                     IconButton(onClick = { viewModel.toggleDisplayMode() }) {
                         Icon(

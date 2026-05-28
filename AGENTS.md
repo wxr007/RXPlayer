@@ -99,6 +99,8 @@
 - **Interop:** `AndroidView` for embedding Android Views (e.g., `PlayerView`).
 - **Image loading:** Coil `AsyncImage` with `ImageRequest.Builder(context)`.
 - **Modifiers:** Chain with dot notation; avoid deeply nested Modifier calls.
+- **Top bar:** Use `CompactTopAppBar(title, onBack, actions)` in `ui/components/` for all screens. Custom 40dp row with `statusBarsPadding()` — avoids M3 `TopAppBar` default 64dp height.
+- **NavHost animations:** Disable default 700ms fade with `fadeIn/Out(tween(0))` to prevent mis-tap during page transitions.
 
 ### Coroutines
 - ViewModel scope: `viewModelScope.launch { ... }`
@@ -114,12 +116,35 @@
 - Reactive queries return `Flow<List<T>>`.
 - Database version starts at 1; use `exportSchema = false` during development.
 - DAOs are exposed via `@Provides` in the Hilt module.
+- Compound primary keys for multi-source data: `@Entity(primaryKeys = ["id", "folderPath"])`.
+- Use `@Transaction` + delete + insert for replacing a folder's video list (`replaceFolder()`).
+- LIKE queries must escape `_` and `%` with `ESCAPE '\\'` in SQL.
 
 ### Error Handling
 - Use Kotlin null-safety (`?.`, `?:`, `.toLongOrNull()`) as the primary error handling mechanism.
 - `try-catch` only when interacting with platform APIs that throw checked exceptions.
 - Return `emptyList()` on failure instead of throwing or propagating null.
 - No custom exception classes; no `Result<T>` wrapper type.
+
+### Thumbnail & MediaMetadataRetriever Safety
+- `ThumbnailCache.decodeWithRetriever()` must always call `retriever.release()` in `finally` block — native resource leak causes crash.
+- Always check `fileExists(videoPath)` before creating `MediaMetadataRetriever` to avoid native resource drain on deleted files.
+- `fileExists()` handles both `content://` SAF URIs (`openFileDescriptor`) and local file paths (`File.exists()`).
+- `syncFolderFromMediaStore()` must use `videoDao.replaceFolder()` (delete + insert transaction) — NOT `insertAll()` — to clean up stale Room rows for externally-deleted videos.
+- Wrap `ThumbnailCache.getThumbnail()` calls in UI `LaunchedEffect` with try-catch for defense-in-depth.
+
+### SAF Folder Scanning
+- **scanSafFolderWithProgress()**: Insert placeholder `VideoFolder` first (so UI shows it immediately), then scan with progress callback, then update Room.
+- Progress is a `Map<String, Float>` in `HomeViewModel._scanProgress`, keyed by folder path.
+- Only generate thumbnails for the first 4 videos (`coverPaths.size < 4`).
+- `coverPaths` stores cached JPEG file paths (from `ThumbnailCache.getCachedPath()`), NOT raw video paths.
+- Coil `AsyncImage` in `ThumbnailCell` loads cached JPEG directly — no need for `MediaMetadataRetriever` in UI.
+
+### Folder Display Mode Persistence
+- `FolderEntity.displayMode` (Int: 0=fit, 1=crop) persisted in Room (DB v5, column added via ALTER TABLE migration).
+- `syncFolders()` saves/restores existing `displayMode` values via `modeMap` to prevent `REPLACE` from resetting them.
+- `FolderDao.updateDisplayMode(path, mode)` selectively updates only this column.
+- `VideoListViewModel.toggleDisplayMode()` flips value, persists to Room, and UI reads via `displayMode` StateFlow.
 
 ### Code Generation & Plugins
 - **KSP** for Room compiler (`room-compiler`) and Hilt compiler (`hilt-compiler`).
