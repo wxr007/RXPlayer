@@ -1,0 +1,142 @@
+package com.rxplayer.app.ui.components
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.rxplayer.app.media.SceneData
+import com.rxplayer.app.media.SceneDetector
+import java.io.File
+
+@Composable
+fun TimelinePreviewBar(
+    scenes: List<SceneData>,
+    currentPosition: Long,
+    onSceneClick: (Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (scenes.isEmpty()) return
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = "镜头切换",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+        )
+
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(scenes, key = { it.sceneIndex }) { scene ->
+                SceneThumbnail(
+                    scene = scene,
+                    isCurrent = isCurrentScene(scene, currentPosition, scenes),
+                    onClick = { onSceneClick(scene.timestampMs) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SceneThumbnail(
+    scene: SceneData,
+    isCurrent: Boolean,
+    onClick: () -> Unit
+) {
+    val context = LocalContext.current
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .width(80.dp)
+            .clickable(onClick = onClick)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(16f / 9f)
+                .clip(RoundedCornerShape(4.dp))
+                .then(
+                    if (isCurrent) Modifier.border(
+                        2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(4.dp)
+                    ) else Modifier
+                )
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(File(scene.thumbnailPath))
+                    .crossfade(true)
+                    .build(),
+                contentDescription = "Scene at ${SceneDetector.formatTimestamp(scene.timestampMs)}",
+                modifier = Modifier.fillMaxWidth().matchParentSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        Text(
+            text = SceneDetector.formatTimestamp(scene.timestampMs),
+            style = MaterialTheme.typography.labelSmall,
+            fontSize = 10.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 2.dp)
+        )
+    }
+}
+
+@Composable
+fun SceneAnalysisProgress(
+    progress: Float,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)
+    ) {
+        Text(
+            text = "正在分析镜头切换... ${(progress * 100).toInt()}%",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+        )
+    }
+}
+
+private fun isCurrentScene(scene: SceneData, position: Long, allScenes: List<SceneData>): Boolean {
+    val index = allScenes.indexOf(scene)
+    if (index < 0) return false
+    val nextTimestamp = if (index + 1 < allScenes.size) allScenes[index + 1].timestampMs else Long.MAX_VALUE
+    return position in scene.timestampMs until nextTimestamp
+}
