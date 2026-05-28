@@ -6,6 +6,7 @@ import android.net.Uri
 import android.provider.MediaStore
 import android.provider.MediaStore.Video.Media
 import androidx.documentfile.provider.DocumentFile
+import com.rxplayer.app.data.db.FolderDao
 import com.rxplayer.app.data.db.VideoDao
 import com.rxplayer.app.data.db.VideoEntity
 import com.rxplayer.app.data.model.Video
@@ -21,9 +22,24 @@ import javax.inject.Singleton
 @Singleton
 class VideoRepository @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val videoDao: VideoDao
+    private val videoDao: VideoDao,
+    private val folderDao: FolderDao
 ) {
-    fun getVideoFolders(): List<VideoFolder> {
+    fun observeFolders(): Flow<List<VideoFolder>> {
+        return folderDao.getAllFolders().map { entities ->
+            entities.map { it.toModel() }
+        }
+    }
+
+    suspend fun syncFolders() {
+        val mediaStoreFolders = getVideoFolders()
+        val safUris = getSavedSafUris()
+        val safFolders = safUris.mapNotNull { scanSafFolder(it) }
+        val allFolders = (mediaStoreFolders + safFolders).map { it.toEntity() }
+        folderDao.insertAll(allFolders)
+    }
+
+    private fun getVideoFolders(): List<VideoFolder> {
         val folders = mutableMapOf<String, MutableList<String>>()
         val uri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
         val projection = arrayOf(Media.DATA)
@@ -46,6 +62,11 @@ class VideoRepository @Inject constructor(
         }
     }
 
+    private fun getSavedSafUris(): List<String> {
+        val prefs = context.getSharedPreferences("saf_folders", Context.MODE_PRIVATE)
+        return prefs.getStringSet("uris", emptySet())?.toList() ?: emptyList()
+    }
+
     fun observeVideosInFolder(folderPath: String): Flow<List<Video>> {
         return videoDao.getVideosInFolder(folderPath).map { entities ->
             entities.map { it.toModel() }
@@ -59,15 +80,15 @@ class VideoRepository @Inject constructor(
             queryMediaStore(folderPath)
         }
         val entities = videos.map { it.toEntity(folderPath) }
-        videoDao.replaceFolder(folderPath, entities)
+        videoDao.insertAll(entities)
     }
 
-    fun scanSafFolder(safUri: String): VideoFolder? {
+    private fun scanSafFolder(safUri: String): VideoFolder? {
         val uri = Uri.parse(safUri)
         val root = DocumentFile.fromTreeUri(context, uri) ?: return null
         val videoFiles = mutableListOf<DocumentFile>()
         scanVideoFiles(root, videoFiles)
-        val name = uri.lastPathSegment ?: root.name ?: safUri.substringAfterLast("/")
+        val name = root.name ?: safFolderDisplayName(safUri)
         return VideoFolder(
             name = name,
             path = safUri,
@@ -138,8 +159,9 @@ class VideoRepository @Inject constructor(
             Media._ID, Media.DATA, Media.DISPLAY_NAME,
             Media.DURATION, Media.SIZE, Media.MIME_TYPE, Media.DATE_ADDED
         )
-        val selection = "${Media.DATA} LIKE ?"
-        val selectionArgs = arrayOf("$folderPath/%")
+        val escapedPath = folderPath.replace("\\", "\\\\").replace("_", "\\_").replace("%", "\\%")
+        val selection = "${Media.DATA} LIKE ? ESCAPE '\\'"
+        val selectionArgs = arrayOf("$escapedPath/%")
         context.contentResolver.query(uri, projection, selection, selectionArgs, null)?.use { cursor ->
             val idIdx = cursor.getColumnIndexOrThrow(Media._ID)
             val dataIdx = cursor.getColumnIndexOrThrow(Media.DATA)
@@ -169,6 +191,12 @@ class VideoRepository @Inject constructor(
     }
 }
 
+private fun safFolderDisplayName(safUri: String): String {
+    val lastSegment = Uri.parse(safUri).lastPathSegment ?: return safUri.substringAfterLast("/")
+    val path = lastSegment.substringAfter(":")
+    return path.substringAfterLast("/").ifEmpty { path }
+}
+
 private fun Video.toEntity(folderPath: String) = VideoEntity(
     id = id,
     folderPath = folderPath,
@@ -190,5 +218,21 @@ private fun VideoEntity.toModel() = Video(
     fileSize = fileSize,
     resolution = resolution,
     mimeType = mimeType,
+    addedAt = addedAt
+)
+
+private fun VideoFolder.toEntity() = com.rxplayer.app.data.db.FolderEntity(
+    path = path,
+    name = name,
+    videoCount = videoCount,
+    coverPaths = coverPaths.joinToString("\n"),
+    addedAt = addedAt
+)
+
+private fun com.rxplayer.app.data.db.FolderEntity.toModel() = VideoFolder(
+    name = name,
+    path = path,
+    videoCount = videoCount,
+    coverPaths = coverPaths.split("\n").filter { it.isNotEmpty() },
     addedAt = addedAt
 )

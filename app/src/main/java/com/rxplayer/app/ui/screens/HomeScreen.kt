@@ -126,25 +126,59 @@ private fun FolderCard(
                     .aspectRatio(16f / 9f)
                     .clip(MaterialTheme.shapes.medium)
             ) {
-                val coverPath = folder.coverPaths.firstOrNull()
-                if (coverPath != null) {
-                    val model = if (coverPath.startsWith("content://")) {
-                        ImageRequest.Builder(context)
-                            .data(coverPath)
-                            .crossfade(true)
-                            .build()
-                    } else {
-                        ImageRequest.Builder(context)
-                            .data(File(coverPath))
-                            .crossfade(true)
-                            .build()
+                if (folder.coverPaths.isNotEmpty()) {
+                    androidx.compose.foundation.layout.Column(
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        val rows = folder.coverPaths.chunked(2)
+                        for (row in rows) {
+                            androidx.compose.foundation.layout.Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
+                                horizontalArrangement = Arrangement.Start
+                            ) {
+                                for (i in 0 until 2) {
+                                    val path = row.getOrNull(i)
+                                    if (path != null) {
+                                        val model = if (path.startsWith("content://")) {
+                                            ImageRequest.Builder(context)
+                                                .data(path)
+                                                .crossfade(true)
+                                                .build()
+                                        } else {
+                                            ImageRequest.Builder(context)
+                                                .data(File(path))
+                                                .crossfade(true)
+                                                .build()
+                                        }
+                                        AsyncImage(
+                                            model = model,
+                                            contentDescription = null,
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .fillMaxSize(),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    } else {
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .fillMaxSize(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Folder,
+                                                contentDescription = null,
+                                                modifier = Modifier.fillMaxSize(0.5f),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
-                    AsyncImage(
-                        model = model,
-                        contentDescription = folder.name,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
                 } else {
                     Box(
                         modifier = Modifier.fillMaxSize(),

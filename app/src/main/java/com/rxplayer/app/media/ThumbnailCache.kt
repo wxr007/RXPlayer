@@ -1,13 +1,10 @@
 package com.rxplayer.app.media
 
-import android.content.ContentUris
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.net.Uri
-import android.provider.MediaStore
-import android.util.Size
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -22,17 +19,15 @@ class ThumbnailCache(private val context: Context) {
     }
 
     suspend fun getThumbnail(
-        videoId: Long,
         videoPath: String,
         maxWidth: Int = 240
     ): Bitmap? = withContext(Dispatchers.IO) {
-        val file = thumbnailFile(videoId)
+        val file = thumbnailFile(videoPath)
         if (file.exists()) {
             return@withContext BitmapFactory.decodeFile(file.absolutePath)
         }
 
-        val bitmap = loadSystemThumbnail(videoId)
-            ?: decodeWithRetriever(videoPath, maxWidth)
+        val bitmap = decodeWithRetriever(videoPath, maxWidth)
 
         if (bitmap != null) {
             FileOutputStream(file).use { out ->
@@ -40,17 +35,6 @@ class ThumbnailCache(private val context: Context) {
             }
         }
         bitmap
-    }
-
-    private fun loadSystemThumbnail(videoId: Long): Bitmap? {
-        return try {
-            val uri = ContentUris.withAppendedId(
-                MediaStore.Video.Media.EXTERNAL_CONTENT_URI, videoId
-            )
-            context.contentResolver.loadThumbnail(uri, Size(240, 240), null)
-        } catch (_: Exception) {
-            null
-        }
     }
 
     private fun decodeWithRetriever(videoPath: String, maxWidth: Int): Bitmap? {
@@ -79,8 +63,8 @@ class ThumbnailCache(private val context: Context) {
         cacheDir.listFiles()?.forEach { it.delete() }
     }
 
-    private fun thumbnailFile(videoId: Long): File {
-        return File(cacheDir, "${videoId}.jpg")
+    private fun thumbnailFile(videoPath: String): File {
+        return File(cacheDir, "${videoPath.hashCode()}.jpg")
     }
 
 }

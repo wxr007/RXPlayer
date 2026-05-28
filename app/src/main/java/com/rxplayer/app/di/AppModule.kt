@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.rxplayer.app.data.db.AppDatabase
+import com.rxplayer.app.data.db.FolderDao
 import com.rxplayer.app.data.db.ScenePointDao
 import com.rxplayer.app.data.db.VideoDao
 import dagger.Module
@@ -25,7 +26,7 @@ object AppModule {
             context,
             AppDatabase::class.java,
             "rxplayer.db"
-        ).addMigrations(MIGRATION_1_2)
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .build()
     }
 
@@ -37,6 +38,48 @@ object AppModule {
     @Provides
     fun provideVideoDao(database: AppDatabase): VideoDao {
         return database.videoDao()
+    }
+
+    @Provides
+    fun provideFolderDao(database: AppDatabase): FolderDao {
+        return database.folderDao()
+    }
+
+    private val MIGRATION_3_4 = object : Migration(3, 4) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS `folders` (
+                    `path` TEXT NOT NULL,
+                    `name` TEXT NOT NULL,
+                    `videoCount` INTEGER NOT NULL DEFAULT 0,
+                    `coverPaths` TEXT NOT NULL DEFAULT '',
+                    `addedAt` INTEGER NOT NULL DEFAULT 0,
+                    PRIMARY KEY(`path`)
+                )
+            """.trimIndent())
+        }
+    }
+
+    private val MIGRATION_2_3 = object : Migration(2, 3) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS `videos_new` (
+                    `id` INTEGER NOT NULL,
+                    `folderPath` TEXT NOT NULL,
+                    `fileName` TEXT NOT NULL,
+                    `filePath` TEXT NOT NULL,
+                    `duration` INTEGER NOT NULL DEFAULT 0,
+                    `fileSize` INTEGER NOT NULL DEFAULT 0,
+                    `resolution` TEXT NOT NULL DEFAULT '',
+                    `mimeType` TEXT NOT NULL DEFAULT '',
+                    `addedAt` INTEGER NOT NULL DEFAULT 0,
+                    PRIMARY KEY(`id`, `folderPath`)
+                )
+            """.trimIndent())
+            db.execSQL("INSERT INTO `videos_new` SELECT * FROM `videos`")
+            db.execSQL("DROP TABLE `videos`")
+            db.execSQL("ALTER TABLE `videos_new` RENAME TO `videos`")
+        }
     }
 
     private val MIGRATION_1_2 = object : Migration(1, 2) {

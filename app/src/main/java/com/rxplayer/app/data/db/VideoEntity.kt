@@ -1,11 +1,10 @@
 package com.rxplayer.app.data.db
 
 import androidx.room.Entity
-import androidx.room.PrimaryKey
 
-@Entity(tableName = "videos")
+@Entity(tableName = "videos", primaryKeys = ["id", "folderPath"])
 data class VideoEntity(
-    @PrimaryKey val id: Long,
+    val id: Long,
     val folderPath: String,
     val fileName: String,
     val filePath: String,

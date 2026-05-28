@@ -118,11 +118,11 @@ private fun VideoGridItem(
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
-    var thumbnail by remember(video.id) { mutableStateOf<Bitmap?>(null) }
+    var thumbnail by remember(video.filePath) { mutableStateOf<Bitmap?>(null) }
 
-    LaunchedEffect(video.id) {
+    LaunchedEffect(video.filePath) {
         val cache = ThumbnailCache(context)
-        thumbnail = cache.getThumbnail(video.id, video.filePath)
+        thumbnail = cache.getThumbnail(video.filePath)
     }
 
     Card(

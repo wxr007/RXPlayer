@@ -12,6 +12,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -25,31 +26,30 @@ class HomeViewModel @Inject constructor(
     private val _folders = MutableStateFlow<List<VideoFolder>>(emptyList())
     val folders: StateFlow<List<VideoFolder>> = _folders
 
+    private var synced = false
+
     init {
-        loadFolders()
+        observeDb()
+        backgroundSync()
     }
 
-    fun loadFolders() {
+    private fun observeDb() {
         viewModelScope.launch {
-            val mediaStoreFolders = withContext(Dispatchers.IO) {
-                repository.getVideoFolders().toMutableList()
-            }
-            val safUris = getSavedSafUris()
-            for (uriString in safUris) {
-                val scanned = withContext(Dispatchers.IO) {
-                    repository.scanSafFolder(uriString)
+            repository.observeFolders()
+                .catch { emit(emptyList()) }
+                .collect { list ->
+                    _folders.value = list
                 }
-                mediaStoreFolders.add(
-                    scanned ?: VideoFolder(
-                        name = Uri.parse(uriString).lastPathSegment ?: uriString.substringAfterLast("/"),
-                        path = uriString,
-                        videoCount = 0,
-                        coverPaths = emptyList(),
-                        addedAt = System.currentTimeMillis()
-                    )
-                )
+        }
+    }
+
+    private fun backgroundSync() {
+        if (synced) return
+        synced = true
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                repository.syncFolders()
             }
-            _folders.value = mediaStoreFolders
         }
     }
 
@@ -64,11 +64,10 @@ class HomeViewModel @Inject constructor(
         val prefs = context.getSharedPreferences("saf_folders", Context.MODE_PRIVATE)
         val existing = prefs.getStringSet("uris", emptySet()) ?: emptySet()
         prefs.edit().putStringSet("uris", existing + uri.toString()).apply()
-        loadFolders()
-    }
-
-    private fun getSavedSafUris(): List<String> {
-        val prefs = context.getSharedPreferences("saf_folders", Context.MODE_PRIVATE)
-        return prefs.getStringSet("uris", emptySet())?.toList() ?: emptyList()
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                repository.syncFolders()
+            }
+        }
     }
 }
