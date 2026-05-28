@@ -129,7 +129,10 @@ fun PlayerScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
+                    .then(
+                        if (isFullScreen) Modifier.weight(1f)
+                        else Modifier.aspectRatio(16f / 9f)
+                    )
                     .background(MaterialTheme.colorScheme.background)
             ) {
                 AndroidView(
@@ -176,6 +179,13 @@ fun PlayerScreen(
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(start = 8.dp)
                     )
+
+                    IconButton(onClick = toggleFullScreen) {
+                        Icon(
+                            imageVector = Icons.Default.Fullscreen,
+                            contentDescription = "全屏"
+                        )
+                    }
                 }
             }
         }
