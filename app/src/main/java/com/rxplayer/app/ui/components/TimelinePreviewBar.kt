@@ -68,6 +68,7 @@ fun TimelinePreviewBar(
                     scene = scene,
                     isCurrent = isCurrentScene(scene, currentPosition, scenes),
                     onClick = { onSceneClick(scene.timestampMs) },
+                    compact = true,
                     timestampColor = Color.White
                 )
             }
@@ -80,6 +81,7 @@ private fun SceneThumbnail(
     scene: SceneData,
     isCurrent: Boolean,
     onClick: () -> Unit,
+    compact: Boolean = false,
     timestampColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
 ) {
     val context = LocalContext.current
@@ -99,8 +101,14 @@ private fun SceneThumbnail(
     ) {
         Box(
             modifier = Modifier
-                .width((64.dp * imageRatio).coerceAtMost(120.dp))
-                .height(64.dp)
+                .then(
+                    if (compact) Modifier
+                        .width((64.dp * imageRatio).coerceAtMost(120.dp))
+                        .height(64.dp)
+                    else Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(imageRatio)
+                )
                 .clip(RoundedCornerShape(4.dp))
                 .then(
                     if (isCurrent) Modifier.border(
