@@ -10,9 +10,13 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
@@ -139,4 +143,30 @@ private fun isCurrentScene(scene: SceneData, position: Long, allScenes: List<Sce
     if (index < 0) return false
     val nextTimestamp = if (index + 1 < allScenes.size) allScenes[index + 1].timestampMs else Long.MAX_VALUE
     return position in scene.timestampMs until nextTimestamp
+}
+
+@Composable
+fun SceneGrid(
+    scenes: List<SceneData>,
+    currentPosition: Long,
+    onSceneClick: (Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (scenes.isEmpty()) return
+
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(4),
+        contentPadding = PaddingValues(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = modifier.fillMaxWidth().height(420.dp)
+    ) {
+        items(scenes, key = { it.sceneIndex }) { scene ->
+            SceneThumbnail(
+                scene = scene,
+                isCurrent = isCurrentScene(scene, currentPosition, scenes),
+                onClick = { onSceneClick(scene.timestampMs) }
+            )
+        }
+    }
 }

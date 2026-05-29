@@ -39,7 +39,6 @@ class PlayerViewModel @Inject constructor(
         Log.d("RXPlayer", "PlayerViewModel init, videoPath=$videoPath")
         if (videoPath.isNotEmpty()) {
             observeScenes()
-            sceneAnalyzer.analyzeVideo(videoPath)
         }
     }
 

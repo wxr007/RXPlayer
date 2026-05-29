@@ -68,6 +68,7 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.rxplayer.app.ui.components.CompactTopAppBar
 import com.rxplayer.app.ui.components.SceneAnalysisProgress
+import com.rxplayer.app.ui.components.SceneGrid
 import com.rxplayer.app.ui.components.TimelinePreviewBar
 import com.rxplayer.app.viewmodel.PlayerViewModel
 import kotlinx.coroutines.delay
@@ -351,6 +352,50 @@ fun PlayerScreen(
             }
 
             if (!isFullScreen) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = formatDuration(currentPosition),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+
+                    Slider(
+                        value = sliderProgress,
+                        onValueChange = { ratio ->
+                            isDraggingSlider = true
+                            sliderProgress = ratio
+                            player.seekTo((ratio * totalDuration).toLong())
+                        },
+                        onValueChangeFinished = {
+                            isDraggingSlider = false
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = SliderDefaults.colors(
+                            thumbColor = MaterialTheme.colorScheme.primary,
+                            activeTrackColor = MaterialTheme.colorScheme.primary,
+                            inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    )
+
+                    Text(
+                        text = formatDuration(totalDuration),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+
+                    IconButton(onClick = toggleFullScreen) {
+                        Icon(
+                            imageVector = Icons.Default.Fullscreen,
+                            contentDescription = "全屏"
+                        )
+                    }
+                }
+
                 analyzingProgress?.let { progress ->
                     SceneAnalysisProgress(progress = progress)
                 }
@@ -395,49 +440,11 @@ fun PlayerScreen(
                     onSceneClick = { timestampMs -> player.seekTo(timestampMs) }
                 )
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = formatDuration(currentPosition),
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(end = 8.dp)
-                    )
-
-                    Slider(
-                        value = sliderProgress,
-                        onValueChange = { ratio ->
-                            isDraggingSlider = true
-                            sliderProgress = ratio
-                            player.seekTo((ratio * totalDuration).toLong())
-                        },
-                        onValueChangeFinished = {
-                            isDraggingSlider = false
-                        },
-                        modifier = Modifier.weight(1f),
-                        colors = SliderDefaults.colors(
-                            thumbColor = MaterialTheme.colorScheme.primary,
-                            activeTrackColor = MaterialTheme.colorScheme.primary,
-                            inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
-                    )
-
-                    Text(
-                        text = formatDuration(totalDuration),
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(start = 8.dp)
-                    )
-
-                    IconButton(onClick = toggleFullScreen) {
-                        Icon(
-                            imageVector = Icons.Default.Fullscreen,
-                            contentDescription = "全屏"
-                        )
-                    }
-                }
+                SceneGrid(
+                    scenes = scenes,
+                    currentPosition = currentPosition,
+                    onSceneClick = { timestampMs -> player.seekTo(timestampMs) }
+                )
             }
         }
     }
