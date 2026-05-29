@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -91,6 +92,7 @@ fun PlayerScreen(
     var sliderProgress by remember { mutableFloatStateOf(0f) }
     var isDraggingSlider by remember { mutableStateOf(false) }
     var isDraggingTimeline by remember { mutableStateOf(false) }
+    val timelineLazyListState = rememberLazyListState()
     var overlayTimerKey by remember { mutableStateOf(0) }
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
 
@@ -380,6 +382,7 @@ fun PlayerScreen(
                         TimelinePreviewBar(
                             scenes = scenes,
                             currentPosition = currentPosition,
+                            lazyListState = timelineLazyListState,
                             onSceneClick = { timestampMs ->
                                 overlayTimerKey++
                                 player.seekTo(timestampMs)

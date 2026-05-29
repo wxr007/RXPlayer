@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -42,7 +43,8 @@ fun TimelinePreviewBar(
     scenes: List<SceneData>,
     currentPosition: Long,
     onSceneClick: (Long) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    lazyListState: androidx.compose.foundation.lazy.LazyListState = rememberLazyListState()
 ) {
     if (scenes.isEmpty()) return
 
@@ -55,6 +57,7 @@ fun TimelinePreviewBar(
         )
 
         LazyRow(
+            state = lazyListState,
             contentPadding = PaddingValues(horizontal = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier.fillMaxWidth()
