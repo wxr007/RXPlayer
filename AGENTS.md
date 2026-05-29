@@ -75,6 +75,7 @@
   - `ui/components/` — reusable composables
   - `ui/theme/` — theming (Color, Theme)
   - `data/model/` — data classes
+  - `data/settings/` — SharedPreferences-based settings (SettingsManager)
   - `data/db/` — Room entities, DAOs, Database
   - `data/repository/` — repository layer
   - `media/` — scene detection, media analysis
@@ -96,11 +97,13 @@
 - **Navigation:** `NavHost` + `composable()` with `navArgument`, `navController.navigate()`.
 - **Bottom nav:** `NavigationBar` + `NavigationBarItem` with `popUpTo(findStartDestination)`.
 - **Lazy lists:** `LazyColumn`/`LazyRow` with `items()`, use `key` parameter.
+- **Grid:** `LazyVerticalGrid` with `GridCells.Fixed(n)`. For scene grids, determine n dynamically (4 landscape, 5 portrait) via `BitmapFactory.Options.inJustDecodeBounds` on first thumbnail.
 - **Interop:** `AndroidView` for embedding Android Views (e.g., `PlayerView`).
 - **Image loading:** Coil `AsyncImage` with `ImageRequest.Builder(context)`.
 - **Modifiers:** Chain with dot notation; avoid deeply nested Modifier calls.
 - **Top bar:** Use `CompactTopAppBar(title, onBack, actions)` in `ui/components/` for all screens. Custom 40dp row with `statusBarsPadding()` — avoids M3 `TopAppBar` default 64dp height.
 - **NavHost animations:** Disable default 700ms fade with `fadeIn/Out(tween(0))` to prevent mis-tap during page transitions.
+- **Buttons in PlayerScreen:** Analyze button uses `Icons.Default.FlashOn` (lightning bolt) instead of `Icons.Default.Refresh`. Privacy mask button toggles `Visibility`/`VisibilityOff`.
 
 ### Coroutines
 - ViewModel scope: `viewModelScope.launch { ... }`
@@ -133,6 +136,12 @@
 - `syncFolderFromMediaStore()` must use `videoDao.replaceFolder()` (delete + insert transaction) — NOT `insertAll()` — to clean up stale Room rows for externally-deleted videos.
 - Wrap `ThumbnailCache.getThumbnail()` calls in UI `LaunchedEffect` with try-catch for defense-in-depth.
 
+### Scene Thumbnail Aspect Ratio
+- `ThumbnailCache.decodeWithRetriever()` must always call `retriever.release()` in `finally` block.
+- `SceneDetector.saveThumbnail()` scales preserving aspect ratio (fit within w×h, not force) — uses `minOf(width/bitmap.width, height/bitmap.height, 1f)` as scale factor.
+- `SceneThumbnail` in `TimelinePreviewBar` determines aspect ratio via `BitmapFactory.Options.inJustDecodeBounds` instead of hardcoded `16f/9f`.
+- `SceneGrid` reads first thumbnail dimensions to choose 4 columns (landscape) or 5 columns (portrait).
+
 ### SAF Folder Scanning
 - **scanSafFolderWithProgress()**: Insert placeholder `VideoFolder` first (so UI shows it immediately), then scan with progress callback, then update Room.
 - Progress is a `Map<String, Float>` in `HomeViewModel._scanProgress`, keyed by folder path.
@@ -145,6 +154,19 @@
 - `syncFolders()` saves/restores existing `displayMode` values via `modeMap` to prevent `REPLACE` from resetting them.
 - `FolderDao.updateDisplayMode(path, mode)` selectively updates only this column.
 - `VideoListViewModel.toggleDisplayMode()` flips value, persists to Room, and UI reads via `displayMode` StateFlow.
+
+### Settings System (SettingsManager)
+- Stored in SharedPreferences file `"settings"`, `@Singleton` + `@Inject constructor` (Hilt auto-injects, no AppModule entry needed).
+- Exposed as `StateFlow` via `MutableStateFlow` backing fields, read on init and updated on write.
+- `themeMode`: `"system"` / `"light"` / `"dark"` — consumed by `RXPlayerTheme(themeMode)` to override `isSystemInDarkTheme()`.
+- `autoPlay`: `Boolean` (default `true`) — consumed by `PlayerViewModel` via `settingsManager.autoPlay`, applied via `LaunchedEffect` -> `player.playWhenReady`.
+- `analysisMode`: `"smart"` (pixel-diff scene detection) or `"interval"` (fixed-rate capture) — consumed by `SceneAnalyzer`, passed to `SceneDetector.detectScenes(mode)`.
+- `analysisInterval`: `Int` (15-60, default 30) — only used when `analysisMode == "interval"`, passed as `intervalSec` to `SceneDetector.detectScenes()`, multiplied by `1000L` for millis.
+
+### Scene Detection Modes
+- **"smart"**: Compares 32×32 pixel histograms every 500ms, captures when diff > 0.25 threshold (default). Produces variable number of scenes per video.
+- **"interval"**: Captures one frame every `intervalSec` seconds regardless of scene change. Simpler, deterministic number of scenes (`durationMs / intervalMs`).
+- Selected via SettingsScreen, persisted in SharedPreferences.
 
 ### Code Generation & Plugins
 - **KSP** for Room compiler (`room-compiler`) and Hilt compiler (`hilt-compiler`).
