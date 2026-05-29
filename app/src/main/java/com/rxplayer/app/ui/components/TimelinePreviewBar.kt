@@ -105,7 +105,7 @@ private fun SceneThumbnail(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(imageRatio)
-                .heightIn(max = 72.dp)
+                .heightIn(max = 64.dp)
                 .clip(RoundedCornerShape(4.dp))
                 .then(
                     if (isCurrent) Modifier.border(
