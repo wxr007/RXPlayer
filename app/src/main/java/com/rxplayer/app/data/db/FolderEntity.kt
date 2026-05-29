@@ -10,8 +10,8 @@ data class FolderEntity(
     val videoCount: Int,
     val coverPaths: String,
     val addedAt: Long,
-    val displayMode: Int = 0,
-    val gridColumns: Int = 4,
-    val sortBy: String = "name",
-    val sortAscending: Int = 1
+    val displayMode: Int = 1,
+    val gridColumns: Int = 3,
+    val sortBy: String = "date",
+    val sortAscending: Int = 0
 )

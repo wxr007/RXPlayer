@@ -64,7 +64,7 @@ class VideoRepository @Inject constructor(
     }
 
     suspend fun getGridColumns(folderPath: String): Int {
-        return folderDao.getByPath(folderPath)?.gridColumns ?: 4
+        return folderDao.getByPath(folderPath)?.gridColumns ?: 3
     }
 
     suspend fun setGridColumns(folderPath: String, columns: Int) {
@@ -73,7 +73,7 @@ class VideoRepository @Inject constructor(
 
     suspend fun getSortSettings(folderPath: String): Pair<String, Int> {
         val entity = folderDao.getByPath(folderPath)
-        return Pair(entity?.sortBy ?: "name", entity?.sortAscending ?: 1)
+        return Pair(entity?.sortBy ?: "date", entity?.sortAscending ?: 0)
     }
 
     suspend fun setSort(folderPath: String, sortBy: String, ascending: Int) {

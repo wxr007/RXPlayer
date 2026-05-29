@@ -7,8 +7,8 @@ data class VideoFolder(
     val videoCount: Int,
     val coverPaths: List<String>,
     val addedAt: Long = System.currentTimeMillis(),
-    val displayMode: Int = 0,
-    val gridColumns: Int = 4,
-    val sortBy: String = "name",
-    val sortAscending: Int = 1
+    val displayMode: Int = 1,
+    val gridColumns: Int = 3,
+    val sortBy: String = "date",
+    val sortAscending: Int = 0
 )

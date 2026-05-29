@@ -24,13 +24,13 @@ class VideoListViewModel @Inject constructor(
     private val _displayMode = MutableStateFlow(false)
     val displayMode: StateFlow<Boolean> = _displayMode
 
-    private val _gridColumns = MutableStateFlow(4)
+    private val _gridColumns = MutableStateFlow(3)
     val gridColumns: StateFlow<Int> = _gridColumns
 
-    private val _sortBy = MutableStateFlow("name")
+    private val _sortBy = MutableStateFlow("date")
     val sortBy: StateFlow<String> = _sortBy
 
-    private val _sortAscending = MutableStateFlow(true)
+    private val _sortAscending = MutableStateFlow(false)
     val sortAscending: StateFlow<Boolean> = _sortAscending
 
     private var synced = false
