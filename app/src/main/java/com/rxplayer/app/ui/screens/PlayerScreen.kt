@@ -108,6 +108,7 @@ fun PlayerScreen(
     val analyzingProgress by viewModel.analyzingProgress.collectAsState()
     val isAnalyzing by viewModel.isAnalyzing.collectAsState()
     val autoPlay by viewModel.autoPlay.collectAsState()
+    val seekStep by viewModel.seekStep.collectAsState()
 
     val decodedPath = Uri.decode(videoPath)
     val videoName = decodedPath.substringAfterLast("/")
@@ -269,12 +270,13 @@ fun PlayerScreen(
                             isFullScreen = isFullScreen,
                             showOverlay = showOverlay,
                             onDoubleTap = { xFraction ->
+                                val stepMs = seekStep * 1000L
                                 if (xFraction < 0.25f) {
-                                    player.seekTo((player.currentPosition - 10000).coerceAtLeast(0))
-                                    showSeekIndicator = "-10s"
+                                    player.seekTo((player.currentPosition - stepMs).coerceAtLeast(0))
+                                    showSeekIndicator = "-${seekStep}s"
                                 } else if (xFraction > 0.75f) {
-                                    player.seekTo((player.currentPosition + 10000).coerceAtMost(totalDuration))
-                                    showSeekIndicator = "+10s"
+                                    player.seekTo((player.currentPosition + stepMs).coerceAtMost(totalDuration))
+                                    showSeekIndicator = "+${seekStep}s"
                                 } else {
                                     player.playWhenReady = !player.playWhenReady
                                     showCenterIcon = true

@@ -15,6 +15,7 @@ class SettingsViewModel @Inject constructor(
     val autoPlay: StateFlow<Boolean> = settingsManager.autoPlay
     val analysisMode: StateFlow<String> = settingsManager.analysisMode
     val analysisInterval: StateFlow<Int> = settingsManager.analysisInterval
+    val seekStep: StateFlow<Int> = settingsManager.seekStep
 
     fun setThemeMode(mode: String) {
         settingsManager.setThemeMode(mode)
@@ -30,5 +31,9 @@ class SettingsViewModel @Inject constructor(
 
     fun setAnalysisInterval(seconds: Int) {
         settingsManager.setAnalysisInterval(seconds)
+    }
+
+    fun setSeekStep(seconds: Int) {
+        settingsManager.setSeekStep(seconds)
     }
 }

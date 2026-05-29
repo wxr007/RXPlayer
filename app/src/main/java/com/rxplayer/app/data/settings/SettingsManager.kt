@@ -25,10 +25,14 @@ class SettingsManager @Inject constructor(
     private val _analysisInterval = MutableStateFlow(readAnalysisInterval())
     val analysisInterval: StateFlow<Int> = _analysisInterval
 
+    private val _seekStep = MutableStateFlow(readSeekStep())
+    val seekStep: StateFlow<Int> = _seekStep
+
     private fun readThemeMode(): String = prefs.getString("theme_mode", "system") ?: "system"
     private fun readAutoPlay(): Boolean = prefs.getBoolean("auto_play", true)
     private fun readAnalysisMode(): String = prefs.getString("analysis_mode", "smart") ?: "smart"
     private fun readAnalysisInterval(): Int = prefs.getInt("analysis_interval", 30)
+    private fun readSeekStep(): Int = prefs.getInt("seek_step", 10)
 
     fun setThemeMode(mode: String) {
         prefs.edit().putString("theme_mode", mode).apply()
@@ -46,8 +50,14 @@ class SettingsManager @Inject constructor(
     }
 
     fun setAnalysisInterval(seconds: Int) {
-        val clamped = seconds.coerceIn(15, 60)
+        val clamped = seconds.coerceIn(5, 60)
         prefs.edit().putInt("analysis_interval", clamped).apply()
         _analysisInterval.value = clamped
+    }
+
+    fun setSeekStep(seconds: Int) {
+        val clamped = seconds.coerceIn(5, 15)
+        prefs.edit().putInt("seek_step", clamped).apply()
+        _seekStep.value = clamped
     }
 }

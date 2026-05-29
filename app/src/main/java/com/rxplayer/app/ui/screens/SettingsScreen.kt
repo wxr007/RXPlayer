@@ -34,6 +34,7 @@ fun SettingsScreen(
     val autoPlay by viewModel.autoPlay.collectAsState()
     val analysisMode by viewModel.analysisMode.collectAsState()
     val analysisInterval by viewModel.analysisInterval.collectAsState()
+    val seekStep by viewModel.seekStep.collectAsState()
 
     Column(
         modifier = Modifier
@@ -148,8 +149,8 @@ fun SettingsScreen(
                 Slider(
                     value = analysisInterval.toFloat(),
                     onValueChange = { viewModel.setAnalysisInterval(it.toInt()) },
-                    valueRange = 15f..60f,
-                    steps = 44,
+                    valueRange = 5f..60f,
+                    steps = 54,
                     modifier = Modifier.weight(1f),
                     colors = SliderDefaults.colors(
                         thumbColor = MaterialTheme.colorScheme.primary,
@@ -157,6 +158,39 @@ fun SettingsScreen(
                     )
                 )
             }
+        }
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+        Text(
+            text = "快进快退时间",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "${seekStep}秒",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.width(48.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Slider(
+                value = seekStep.toFloat(),
+                onValueChange = { viewModel.setSeekStep(it.toInt()) },
+                valueRange = 5f..15f,
+                steps = 9,
+                modifier = Modifier.weight(1f),
+                colors = SliderDefaults.colors(
+                    thumbColor = MaterialTheme.colorScheme.primary,
+                    activeTrackColor = MaterialTheme.colorScheme.primary
+                )
+            )
         }
     }
 }

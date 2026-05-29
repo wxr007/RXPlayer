@@ -38,6 +38,7 @@ class PlayerViewModel @Inject constructor(
     val isAnalyzing: StateFlow<Boolean> = sceneAnalyzer.isAnalyzing
     val autoPlay: StateFlow<Boolean> = settingsManager.autoPlay
     val analysisMode: StateFlow<String> = settingsManager.analysisMode
+    val seekStep: StateFlow<Int> = settingsManager.seekStep
 
     init {
         Log.d("RXPlayer", "PlayerViewModel init, videoPath=$videoPath")
