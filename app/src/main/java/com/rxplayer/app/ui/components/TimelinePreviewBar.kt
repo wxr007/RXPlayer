@@ -1,5 +1,6 @@
 package com.rxplayer.app.ui.components
 
+import android.graphics.BitmapFactory
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,6 +25,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -84,6 +86,14 @@ private fun SceneThumbnail(
 ) {
     val context = LocalContext.current
 
+    val imageRatio = remember(scene.thumbnailPath) {
+        val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(scene.thumbnailPath, opts)
+        if (opts.outWidth > 0 && opts.outHeight > 0)
+            opts.outWidth.toFloat() / opts.outHeight.toFloat()
+        else 16f / 9f
+    }
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
@@ -93,7 +103,7 @@ private fun SceneThumbnail(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(16f / 9f)
+                .aspectRatio(imageRatio)
                 .clip(RoundedCornerShape(4.dp))
                 .then(
                     if (isCurrent) Modifier.border(
@@ -160,8 +170,17 @@ fun SceneGrid(
 ) {
     if (scenes.isEmpty()) return
 
+    val gridColumns = remember(scenes) {
+        val firstPath = scenes.firstOrNull()?.thumbnailPath
+        if (firstPath != null) {
+            val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(firstPath, opts)
+            if (opts.outWidth > 0 && opts.outHeight > 0 && opts.outHeight > opts.outWidth) 5 else 4
+        } else 4
+    }
+
     LazyVerticalGrid(
-        columns = GridCells.Fixed(4),
+        columns = GridCells.Fixed(gridColumns),
         contentPadding = PaddingValues(8.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),

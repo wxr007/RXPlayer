@@ -19,7 +19,8 @@ import javax.inject.Singleton
 @Singleton
 class SceneAnalyzer @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val scenePointDao: ScenePointDao
+    private val scenePointDao: ScenePointDao,
+    private val settingsManager: com.rxplayer.app.data.settings.SettingsManager
 ) {
     private val detector = SceneDetector(context)
     private val scope = CoroutineScope(Dispatchers.Default)
@@ -63,8 +64,12 @@ class SceneAnalyzer @Inject constructor(
 
             val uri = Uri.parse(videoPath)
             Log.d("RXPlayer", "analyzeVideo: uri=$uri, scheme=${uri.scheme}, path=${uri.path}")
+            val analysisMode = settingsManager.analysisMode.value
+            val analysisInterval = settingsManager.analysisInterval.value
             val scenes = detector.detectScenes(
                 uri = uri,
+                mode = analysisMode,
+                intervalSec = analysisInterval,
                 onProgress = { progress ->
                     _analyzingProgress.value = progress
                 }

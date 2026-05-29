@@ -19,6 +19,8 @@ class SceneDetector(private val context: Context) {
 
     suspend fun detectScenes(
         uri: Uri,
+        mode: String = "smart",
+        intervalSec: Int = 30,
         intervalMs: Long = 500L,
         threshold: Float = 0.25f,
         thumbnailWidth: Int = 120,
@@ -49,6 +51,18 @@ class SceneDetector(private val context: Context) {
         if (durationMs <= 0) {
             retriever.release()
             return@withContext emptyList()
+        }
+
+        if (mode == "interval") {
+            return@withContext captureFramesAtInterval(
+                retriever = retriever,
+                cacheDir = cacheDir,
+                durationMs = durationMs,
+                intervalMs = intervalSec * 1000L,
+                thumbnailWidth = thumbnailWidth,
+                thumbnailHeight = thumbnailHeight,
+                onProgress = onProgress
+            )
         }
 
         val scenes = mutableListOf<SceneData>()
@@ -106,11 +120,49 @@ class SceneDetector(private val context: Context) {
     }
 
     private fun saveThumbnail(bitmap: Bitmap, file: File, width: Int, height: Int) {
-        val thumbnail = Bitmap.createScaledBitmap(bitmap, width, height, true)
+        val scale = minOf(width.toFloat() / bitmap.width, height.toFloat() / bitmap.height, 1f)
+        val scaledW = (bitmap.width * scale).toInt()
+        val scaledH = (bitmap.height * scale).toInt()
+        val thumbnail = Bitmap.createScaledBitmap(bitmap, scaledW, scaledH, true)
         FileOutputStream(file).use { out ->
             thumbnail.compress(Bitmap.CompressFormat.JPEG, 70, out)
         }
         thumbnail.recycle()
+    }
+
+    private suspend fun captureFramesAtInterval(
+        retriever: MediaMetadataRetriever,
+        cacheDir: File,
+        durationMs: Long,
+        intervalMs: Long,
+        thumbnailWidth: Int,
+        thumbnailHeight: Int,
+        onProgress: ((Float) -> Unit)?
+    ): List<SceneData> {
+        val scenes = mutableListOf<SceneData>()
+        var sceneIndex = 0
+        var currentMs = 0L
+
+        while (currentMs < durationMs) {
+            val frame = retriever.getFrameAtTime(
+                currentMs * 1000,
+                MediaMetadataRetriever.OPTION_CLOSEST
+            )
+
+            if (frame != null) {
+                val thumbFile = File(cacheDir, "scene_${sceneIndex}_${currentMs}.jpg")
+                saveThumbnail(frame, thumbFile, thumbnailWidth, thumbnailHeight)
+                scenes.add(SceneData(currentMs, thumbFile.absolutePath, sceneIndex))
+                sceneIndex++
+                frame.recycle()
+            }
+
+            currentMs += intervalMs
+            onProgress?.invoke(currentMs.toFloat() / durationMs)
+        }
+
+        retriever.release()
+        return scenes
     }
 
     fun clearCache(videoPath: String) {

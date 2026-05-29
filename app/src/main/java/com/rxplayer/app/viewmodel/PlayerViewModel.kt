@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import android.util.Base64
 import android.util.Log
+import com.rxplayer.app.data.settings.SettingsManager
 import com.rxplayer.app.media.SceneAnalyzer
 import com.rxplayer.app.media.SceneData
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -16,7 +17,8 @@ import javax.inject.Inject
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val sceneAnalyzer: SceneAnalyzer
+    private val sceneAnalyzer: SceneAnalyzer,
+    private val settingsManager: SettingsManager
 ) : ViewModel() {
 
     private val videoPath: String = decodeVideoPath(savedStateHandle.get<String>("videoPath") ?: "")
@@ -34,6 +36,8 @@ class PlayerViewModel @Inject constructor(
 
     val analyzingProgress: StateFlow<Float?> = sceneAnalyzer.analyzingProgress
     val isAnalyzing: StateFlow<Boolean> = sceneAnalyzer.isAnalyzing
+    val autoPlay: StateFlow<Boolean> = settingsManager.autoPlay
+    val analysisMode: StateFlow<String> = settingsManager.analysisMode
 
     init {
         Log.d("RXPlayer", "PlayerViewModel init, videoPath=$videoPath")

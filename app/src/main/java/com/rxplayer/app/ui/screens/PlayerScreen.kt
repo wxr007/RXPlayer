@@ -25,7 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Visibility
@@ -104,6 +104,7 @@ fun PlayerScreen(
     val scenes by viewModel.scenes.collectAsState()
     val analyzingProgress by viewModel.analyzingProgress.collectAsState()
     val isAnalyzing by viewModel.isAnalyzing.collectAsState()
+    val autoPlay by viewModel.autoPlay.collectAsState()
 
     val decodedPath = Uri.decode(videoPath)
     val videoName = decodedPath.substringAfterLast("/")
@@ -112,8 +113,11 @@ fun PlayerScreen(
         ExoPlayer.Builder(context).build().apply {
             setMediaItem(MediaItem.fromUri(Uri.parse(videoPath)))
             prepare()
-            playWhenReady = true
         }
+    }
+
+    LaunchedEffect(autoPlay) {
+        player.playWhenReady = autoPlay
     }
 
     LaunchedEffect(player) {
@@ -212,7 +216,7 @@ fun PlayerScreen(
                             enabled = !isAnalyzing
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Refresh,
+                                imageVector = Icons.Default.FlashOn,
                                 contentDescription = "视频分析"
                             )
                         }
@@ -484,7 +488,7 @@ fun PlayerScreen(
                             enabled = !isAnalyzing
                         ) {
                             Icon(
-                                imageVector = if (isAnalyzing) Icons.Default.Refresh else Icons.Default.Refresh,
+                                imageVector = Icons.Default.FlashOn,
                                 contentDescription = "分析场景",
                                 tint = MaterialTheme.colorScheme.primary
                             )
