@@ -1,12 +1,12 @@
 package com.rxplayer.app.ui.screens
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -44,92 +44,76 @@ fun SettingsScreen(
         Text(
             text = "主题颜色",
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 8.dp)
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 4.dp)
         )
 
-        listOf(
-            "system" to "跟随系统",
-            "light" to "白色",
-            "dark" to "黑色"
-        ).forEach { (key, label) ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { viewModel.setThemeMode(key) }
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                RadioButton(
-                    selected = themeMode == key,
-                    onClick = { viewModel.setThemeMode(key) }
-                )
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(start = 12.dp)
-                )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            listOf("system" to "跟随系统", "light" to "白色", "dark" to "黑色").forEach { (key, label) ->
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.clickable { viewModel.setThemeMode(key) }
+                ) {
+                    RadioButton(
+                        selected = themeMode == key,
+                        onClick = { viewModel.setThemeMode(key) }
+                    )
+                    Text(text = label, style = MaterialTheme.typography.bodySmall)
+                }
             }
         }
 
-        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
         Text(
             text = "进入播放页面",
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 4.dp)
         )
 
-        listOf(
-            true to "自动播放",
-            false to "暂停"
-        ).forEach { (key, label) ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { viewModel.setAutoPlay(key) }
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                RadioButton(
-                    selected = autoPlay == key,
-                    onClick = { viewModel.setAutoPlay(key) }
-                )
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(start = 12.dp)
-                )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            listOf(true to "自动播放", false to "暂停").forEach { (key, label) ->
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.clickable { viewModel.setAutoPlay(key) }
+                ) {
+                    RadioButton(
+                        selected = autoPlay == key,
+                        onClick = { viewModel.setAutoPlay(key) }
+                    )
+                    Text(text = label, style = MaterialTheme.typography.bodySmall)
+                }
             }
         }
 
-        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
         Text(
             text = "视频分析模式",
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 4.dp)
         )
 
-        listOf(
-            "smart" to "智能分析",
-            "interval" to "固定截图"
-        ).forEach { (key, label) ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { viewModel.setAnalysisMode(key) }
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                RadioButton(
-                    selected = analysisMode == key,
-                    onClick = { viewModel.setAnalysisMode(key) }
-                )
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(start = 12.dp)
-                )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            listOf("smart" to "智能分析", "interval" to "固定截图").forEach { (key, label) ->
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.clickable { viewModel.setAnalysisMode(key) }
+                ) {
+                    RadioButton(
+                        selected = analysisMode == key,
+                        onClick = { viewModel.setAnalysisMode(key) }
+                    )
+                    Text(text = label, style = MaterialTheme.typography.bodySmall)
+                }
             }
         }
 
