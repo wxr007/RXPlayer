@@ -12,16 +12,20 @@ import kotlin.math.abs
 
 class SceneDetector(private val context: Context) {
 
-    private val cacheDir = File(context.cacheDir, "scene_thumbnails")
+    private fun cacheDirFor(uri: Uri): File {
+        val key = uri.toString().hashCode().toUInt().toString(16)
+        return File(context.cacheDir, "scene_thumbnails/$key")
+    }
 
     suspend fun detectScenes(
         uri: Uri,
         intervalMs: Long = 500L,
-        threshold: Float = 0.35f,
+        threshold: Float = 0.25f,
         thumbnailWidth: Int = 120,
         thumbnailHeight: Int = 68,
         onProgress: ((Float) -> Unit)? = null
-    ): List<SceneData> = withContext(Dispatchers.IO) {
+    ): List<SceneData> = withContext(Dispatchers.Default) {
+        val cacheDir = cacheDirFor(uri)
         cacheDir.mkdirs()
 
         val retriever = MediaMetadataRetriever()
@@ -50,13 +54,13 @@ class SceneDetector(private val context: Context) {
         val scenes = mutableListOf<SceneData>()
         var prevPixels: IntArray? = null
         var sceneIndex = 0
-        val compareSize = 16
+        val compareSize = 32
         var currentMs = 0L
 
         while (currentMs < durationMs) {
             val frame = retriever.getFrameAtTime(
                 currentMs * 1000,
-                MediaMetadataRetriever.OPTION_CLOSEST_SYNC
+                MediaMetadataRetriever.OPTION_CLOSEST
             )
 
             if (frame != null) {
@@ -109,8 +113,9 @@ class SceneDetector(private val context: Context) {
         thumbnail.recycle()
     }
 
-    fun clearCache() {
-        cacheDir.listFiles()?.forEach { it.delete() }
+    fun clearCache(videoPath: String) {
+        val uri = Uri.parse(videoPath)
+        cacheDirFor(uri).listFiles()?.forEach { it.delete() }
     }
 
     companion object {

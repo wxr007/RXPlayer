@@ -74,6 +74,7 @@ class VideoRepository @Inject constructor(
         val total = videoFiles.size.coerceAtLeast(1)
 
         val coverPaths = mutableListOf<String>()
+        val videoEntities = mutableListOf<VideoEntity>()
         videoFiles.forEachIndexed { index, file ->
             val videoPath = file.uri.toString()
             if (coverPaths.size < 4) {
@@ -82,11 +83,27 @@ class VideoRepository @Inject constructor(
                 }
                 coverPaths.add(thumbnailCache.getCachedPath(videoPath))
             }
+            videoEntities.add(
+                VideoEntity(
+                    id = index.toLong(),
+                    folderPath = safUri,
+                    fileName = file.name ?: "unknown",
+                    filePath = videoPath,
+                    duration = 0L,
+                    fileSize = file.length() ?: 0L,
+                    resolution = "",
+                    mimeType = file.type ?: "video/mp4",
+                    addedAt = file.lastModified()
+                )
+            )
             onProgress((index + 1).toFloat() / total * 0.9f)
         }
 
         val name = root.name ?: safFolderDisplayName(safUri)
         onProgress(0.92f)
+        withContext(Dispatchers.IO) {
+            videoDao.replaceFolder(safUri, videoEntities)
+        }
         val folder = VideoFolder(
             name = name,
             path = safUri,

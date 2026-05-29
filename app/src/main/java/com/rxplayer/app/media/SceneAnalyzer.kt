@@ -22,7 +22,7 @@ class SceneAnalyzer @Inject constructor(
     private val scenePointDao: ScenePointDao
 ) {
     private val detector = SceneDetector(context)
-    private val scope = CoroutineScope(Dispatchers.IO)
+    private val scope = CoroutineScope(Dispatchers.Default)
 
     private val _analyzingProgress = MutableStateFlow<Float?>(null)
     val analyzingProgress: StateFlow<Float?> = _analyzingProgress
@@ -58,6 +58,7 @@ class SceneAnalyzer @Inject constructor(
             Log.d("RXPlayer", "analyzeVideo: starting analysis")
             _isAnalyzing.value = true
             scenePointDao.deleteScenesForVideo(videoPath)
+            detector.clearCache(videoPath)
             _analyzingProgress.value = 0f
 
             val uri = Uri.parse(videoPath)

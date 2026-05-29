@@ -28,6 +28,8 @@ import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -95,6 +97,7 @@ fun PlayerScreen(
     val timelineLazyListState = rememberLazyListState()
     var overlayTimerKey by remember { mutableStateOf(0) }
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
+    var privacyMaskEnabled by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -213,6 +216,16 @@ fun PlayerScreen(
                                 contentDescription = "视频分析"
                             )
                         }
+                        IconButton(
+                            onClick = { privacyMaskEnabled = !privacyMaskEnabled }
+                        ) {
+                            Icon(
+                                imageVector = if (privacyMaskEnabled) Icons.Default.VisibilityOff
+                                    else Icons.Default.Visibility,
+                                contentDescription = if (privacyMaskEnabled) "关闭隐私遮罩"
+                                    else "开启隐私遮罩"
+                            )
+                        }
                     }
                 )
             }
@@ -265,7 +278,21 @@ fun PlayerScreen(
                         )
                 )
 
-
+                if (privacyMaskEnabled) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.85f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.VisibilityOff,
+                            contentDescription = "隐私遮罩",
+                            modifier = Modifier.size(64.dp),
+                            tint = Color.White.copy(alpha = 0.5f)
+                        )
+                    }
+                }
 
                 if (showCenterIcon) {
                     Box(

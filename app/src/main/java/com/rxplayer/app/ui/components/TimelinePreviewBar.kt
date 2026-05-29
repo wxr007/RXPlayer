@@ -67,7 +67,8 @@ fun TimelinePreviewBar(
                 SceneThumbnail(
                     scene = scene,
                     isCurrent = isCurrentScene(scene, currentPosition, scenes),
-                    onClick = { onSceneClick(scene.timestampMs) }
+                    onClick = { onSceneClick(scene.timestampMs) },
+                    timestampColor = Color.White
                 )
             }
         }
@@ -78,7 +79,8 @@ fun TimelinePreviewBar(
 private fun SceneThumbnail(
     scene: SceneData,
     isCurrent: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    timestampColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
 ) {
     val context = LocalContext.current
 
@@ -115,7 +117,7 @@ private fun SceneThumbnail(
             text = SceneDetector.formatTimestamp(scene.timestampMs),
             style = MaterialTheme.typography.labelSmall,
             fontSize = 10.sp,
-            color = Color.White,
+            color = timestampColor,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 2.dp)
         )
