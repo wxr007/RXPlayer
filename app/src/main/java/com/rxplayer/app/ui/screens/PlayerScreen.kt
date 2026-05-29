@@ -194,6 +194,7 @@ fun PlayerScreen(
     }
 
     Scaffold(
+        containerColor = if (isFullScreen) Color.Black else MaterialTheme.colorScheme.background,
         topBar = {
             if (!isFullScreen) {
                 CompactTopAppBar(
@@ -230,7 +231,7 @@ fun PlayerScreen(
                         if (isFullScreen) Modifier.weight(1f)
                         else Modifier.aspectRatio(16f / 9f)
                     )
-                    .background(MaterialTheme.colorScheme.background)
+                    .background(if (isFullScreen) Color.Black else MaterialTheme.colorScheme.background)
             ) {
                 AndroidView(
                     factory = { ctx ->

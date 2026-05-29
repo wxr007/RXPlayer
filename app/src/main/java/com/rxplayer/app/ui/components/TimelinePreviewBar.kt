@@ -27,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -52,7 +53,7 @@ fun TimelinePreviewBar(
         Text(
             text = "镜头切换",
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = Color.White,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
         )
 
@@ -114,7 +115,7 @@ private fun SceneThumbnail(
             text = SceneDetector.formatTimestamp(scene.timestampMs),
             style = MaterialTheme.typography.labelSmall,
             fontSize = 10.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = Color.White,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 2.dp)
         )
