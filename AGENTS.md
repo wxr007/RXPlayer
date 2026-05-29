@@ -24,6 +24,10 @@
 
 **Note:** This project does not yet have test infrastructure configured. No test runner, test dependencies (JUnit, Espresso), or test source sets exist. Tests should be added under `app/src/test/` (unit) and `app/src/androidTest/` (instrumented). Add JUnit 5 + MockK for ViewModel tests, Compose UI Test for screenshot/components, and Room test helpers for DAO tests.
 
+## Workflow Rule
+
+After every code change, run `./gradlew installDebug` to compile and install, then `git add` + `git commit` with a descriptive message. Do not skip compilation or commit unless the user explicitly says otherwise.
+
 ## Project Technical Stack
 
 - **Build:** Gradle 8.11.1 + Kotlin DSL, AGP 8.7.3
