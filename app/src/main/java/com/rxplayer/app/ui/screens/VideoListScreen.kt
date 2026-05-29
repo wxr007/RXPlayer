@@ -39,11 +39,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rxplayer.app.data.model.Video
 import com.rxplayer.app.media.ThumbnailCache
@@ -142,8 +144,7 @@ private fun VideoGridItem(
                     .fillMaxWidth()
                     .aspectRatio(16f / 9f)
                     .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 if (thumbnail != null) {
                     Image(
@@ -156,8 +157,23 @@ private fun VideoGridItem(
                     Icon(
                         imageVector = Icons.Default.Movie,
                         contentDescription = null,
-                        modifier = Modifier.fillMaxSize(0.4f),
+                        modifier = Modifier.fillMaxSize(0.4f).align(Alignment.Center),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(4.dp)
+                        .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(2.dp))
+                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                ) {
+                    Text(
+                        text = formatDuration(video.duration),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White,
+                        fontSize = 10.sp
                     )
                 }
             }
@@ -170,11 +186,6 @@ private fun VideoGridItem(
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = formatDuration(video.duration),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
