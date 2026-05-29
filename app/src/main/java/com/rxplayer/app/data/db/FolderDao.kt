@@ -20,6 +20,12 @@ interface FolderDao {
     @Query("UPDATE folders SET displayMode = :mode WHERE `path` = :path")
     suspend fun updateDisplayMode(path: String, mode: Int)
 
+    @Query("UPDATE folders SET gridColumns = :columns WHERE `path` = :path")
+    suspend fun updateGridColumns(path: String, columns: Int)
+
+    @Query("UPDATE folders SET sortBy = :sortBy, sortAscending = :ascending WHERE `path` = :path")
+    suspend fun updateSort(path: String, sortBy: String, ascending: Int)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(folders: List<FolderEntity>)
 

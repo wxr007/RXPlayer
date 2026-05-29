@@ -9,26 +9,30 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Crop
-import androidx.compose.material.icons.filled.FitScreen
-import androidx.compose.material.icons.filled.GridOn
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -43,6 +47,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -68,9 +73,28 @@ fun VideoListScreen(
 
     val cropMode by viewModel.displayMode.collectAsState()
     val gridColumns by viewModel.gridColumns.collectAsState()
+    val sortBy by viewModel.sortBy.collectAsState()
+    val sortAscending by viewModel.sortAscending.collectAsState()
+    var showLayoutDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(folderPath) {
         viewModel.loadVideos(folderPath)
+    }
+
+    if (showLayoutDialog) {
+        LayoutSettingsDialog(
+            currentColumns = gridColumns,
+            currentCropMode = cropMode,
+            currentSortBy = sortBy,
+            currentSortAscending = sortAscending,
+            onDismiss = { showLayoutDialog = false },
+            onApply = { columns, crop, newSortBy, ascending ->
+                viewModel.setGridColumns(columns)
+                viewModel.setDisplayMode(crop)
+                viewModel.setSort(newSortBy, ascending)
+                showLayoutDialog = false
+            }
+        )
     }
 
     Scaffold(
@@ -79,16 +103,10 @@ fun VideoListScreen(
                 title = folderName,
                 onBack = onBack,
                 actions = {
-                    IconButton(onClick = { viewModel.toggleGridColumns() }) {
+                    IconButton(onClick = { showLayoutDialog = true }) {
                         Icon(
-                            imageVector = Icons.Default.GridOn,
-                            contentDescription = if (gridColumns == 2) "切换为4列" else "切换为2列"
-                        )
-                    }
-                    IconButton(onClick = { viewModel.toggleDisplayMode() }) {
-                        Icon(
-                            imageVector = if (cropMode) Icons.Default.Crop else Icons.Default.FitScreen,
-                            contentDescription = if (cropMode) "切换为留白显示" else "切换为剪裁显示"
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "布局设置"
                         )
                     }
                 }
@@ -113,6 +131,127 @@ fun VideoListScreen(
             }
         }
     }
+}
+
+@Composable
+private fun LayoutSettingsDialog(
+    currentColumns: Int,
+    currentCropMode: Boolean,
+    currentSortBy: String,
+    currentSortAscending: Boolean,
+    onDismiss: () -> Unit,
+    onApply: (columns: Int, crop: Boolean, sortBy: String, ascending: Boolean) -> Unit
+) {
+    var selectedColumns by remember { mutableStateOf(currentColumns) }
+    var selectedCrop by remember { mutableStateOf(currentCropMode) }
+    var selectedSortBy by remember { mutableStateOf(currentSortBy) }
+    var selectedAscending by remember { mutableStateOf(currentSortAscending) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("布局设置", style = MaterialTheme.typography.titleMedium)
+        },
+        text = {
+            Column {
+                Text("每行显示", style = MaterialTheme.typography.labelLarge)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    listOf(2, 3, 4).forEach { n ->
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            RadioButton(
+                                selected = selectedColumns == n,
+                                onClick = { selectedColumns = n }
+                            )
+                            Text("$n 列", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+
+                Text(
+                    "缩略图显示",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        RadioButton(
+                            selected = !selectedCrop,
+                            onClick = { selectedCrop = false }
+                        )
+                        Text("留白", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        RadioButton(
+                            selected = selectedCrop,
+                            onClick = { selectedCrop = true }
+                        )
+                        Text("剪裁", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+
+                Text(
+                    "排序方式",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    listOf("name" to "名称", "date" to "日期", "duration" to "时长", "size" to "大小").forEach { (key, label) ->
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            RadioButton(
+                                selected = selectedSortBy == key,
+                                onClick = {
+                                    selectedSortBy = key
+                                    selectedAscending = true
+                                }
+                            )
+                            Text(label, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        RadioButton(
+                            selected = selectedAscending,
+                            onClick = { selectedAscending = true }
+                        )
+                        Text("升序", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        RadioButton(
+                            selected = !selectedAscending,
+                            onClick = { selectedAscending = false }
+                        )
+                        Text("降序", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                onApply(selectedColumns, selectedCrop, selectedSortBy, selectedAscending)
+            }) {
+                Text("确定")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消")
+            }
+        }
+    )
 }
 
 @Composable

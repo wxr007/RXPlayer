@@ -63,6 +63,23 @@ class VideoRepository @Inject constructor(
         folderDao.updateDisplayMode(folderPath, mode)
     }
 
+    suspend fun getGridColumns(folderPath: String): Int {
+        return folderDao.getByPath(folderPath)?.gridColumns ?: 4
+    }
+
+    suspend fun setGridColumns(folderPath: String, columns: Int) {
+        folderDao.updateGridColumns(folderPath, columns)
+    }
+
+    suspend fun getSortSettings(folderPath: String): Pair<String, Int> {
+        val entity = folderDao.getByPath(folderPath)
+        return Pair(entity?.sortBy ?: "name", entity?.sortAscending ?: 1)
+    }
+
+    suspend fun setSort(folderPath: String, sortBy: String, ascending: Int) {
+        folderDao.updateSort(folderPath, sortBy, ascending)
+    }
+
     suspend fun scanSafFolderWithProgress(
         safUri: String,
         onProgress: (Float) -> Unit
@@ -315,7 +332,10 @@ private fun VideoFolder.toEntity() = com.rxplayer.app.data.db.FolderEntity(
     videoCount = videoCount,
     coverPaths = coverPaths.joinToString("\n"),
     addedAt = addedAt,
-    displayMode = displayMode
+    displayMode = displayMode,
+    gridColumns = gridColumns,
+    sortBy = sortBy,
+    sortAscending = sortAscending
 )
 
 private fun com.rxplayer.app.data.db.FolderEntity.toModel() = VideoFolder(
@@ -324,5 +344,8 @@ private fun com.rxplayer.app.data.db.FolderEntity.toModel() = VideoFolder(
     videoCount = videoCount,
     coverPaths = coverPaths.split("\n").filter { it.isNotEmpty() },
     addedAt = addedAt,
-    displayMode = displayMode
+    displayMode = displayMode,
+    gridColumns = gridColumns,
+    sortBy = sortBy,
+    sortAscending = sortAscending
 )

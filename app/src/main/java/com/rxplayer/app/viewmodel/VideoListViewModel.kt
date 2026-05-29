@@ -24,8 +24,14 @@ class VideoListViewModel @Inject constructor(
     private val _displayMode = MutableStateFlow(false)
     val displayMode: StateFlow<Boolean> = _displayMode
 
-    private val _gridColumns = MutableStateFlow(2)
+    private val _gridColumns = MutableStateFlow(4)
     val gridColumns: StateFlow<Int> = _gridColumns
+
+    private val _sortBy = MutableStateFlow("name")
+    val sortBy: StateFlow<String> = _sortBy
+
+    private val _sortAscending = MutableStateFlow(true)
+    val sortAscending: StateFlow<Boolean> = _sortAscending
 
     private var synced = false
     private var currentFolderPath = ""
@@ -35,20 +41,47 @@ class VideoListViewModel @Inject constructor(
         observeDb(folderPath)
         backgroundSync(folderPath)
         loadDisplayMode(folderPath)
+        loadGridColumns(folderPath)
+        loadSortSettings(folderPath)
     }
 
-    fun toggleDisplayMode() {
-        val newMode = !_displayMode.value
-        _displayMode.value = newMode
+    fun setDisplayMode(mode: Boolean) {
+        _displayMode.value = mode
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                repository.setDisplayMode(currentFolderPath, if (newMode) 1 else 0)
+                repository.setDisplayMode(currentFolderPath, if (mode) 1 else 0)
             }
         }
     }
 
-    fun toggleGridColumns() {
-        _gridColumns.value = if (_gridColumns.value == 2) 4 else 2
+    fun setGridColumns(columns: Int) {
+        _gridColumns.value = columns
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                repository.setGridColumns(currentFolderPath, columns)
+            }
+        }
+    }
+
+    fun setSort(sortBy: String, ascending: Boolean) {
+        _sortBy.value = sortBy
+        _sortAscending.value = ascending
+        applySort()
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                repository.setSort(currentFolderPath, sortBy, if (ascending) 1 else 0)
+            }
+        }
+    }
+
+    private fun applySort() {
+        val sorted = when (_sortBy.value) {
+            "date" -> _videos.value.sortedBy { it.addedAt }
+            "duration" -> _videos.value.sortedBy { it.duration }
+            "size" -> _videos.value.sortedBy { it.fileSize }
+            else -> _videos.value.sortedBy { it.fileName.lowercase() }
+        }
+        _videos.value = if (_sortAscending.value) sorted else sorted.reversed()
     }
 
     private fun loadDisplayMode(folderPath: String) {
@@ -60,12 +93,33 @@ class VideoListViewModel @Inject constructor(
         }
     }
 
+    private fun loadGridColumns(folderPath: String) {
+        viewModelScope.launch {
+            val columns = withContext(Dispatchers.IO) {
+                repository.getGridColumns(folderPath)
+            }
+            _gridColumns.value = columns
+        }
+    }
+
+    private fun loadSortSettings(folderPath: String) {
+        viewModelScope.launch {
+            val (sortBy, ascending) = withContext(Dispatchers.IO) {
+                repository.getSortSettings(folderPath)
+            }
+            _sortBy.value = sortBy
+            _sortAscending.value = ascending == 1
+            applySort()
+        }
+    }
+
     private fun observeDb(folderPath: String) {
         viewModelScope.launch {
             repository.observeVideosInFolder(folderPath)
                 .catch { emit(emptyList()) }
                 .collect { list ->
                     _videos.value = list
+                    applySort()
                 }
         }
     }
