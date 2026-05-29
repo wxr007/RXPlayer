@@ -8,6 +8,9 @@ import android.view.WindowManager
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,9 +19,6 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -90,6 +90,7 @@ fun PlayerScreen(
     var showSeekIndicator by remember { mutableStateOf("") }
     var sliderProgress by remember { mutableFloatStateOf(0f) }
     var isDraggingSlider by remember { mutableStateOf(false) }
+    var isDraggingTimeline by remember { mutableStateOf(false) }
     var overlayTimerKey by remember { mutableStateOf(0) }
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
 
@@ -138,7 +139,7 @@ fun PlayerScreen(
     LaunchedEffect(isFullScreen, showOverlay, overlayTimerKey) {
         if (isFullScreen && showOverlay) {
             delay(3000)
-            if (!isDraggingSlider) {
+            if (!isDraggingSlider && !isDraggingTimeline) {
                 showOverlay = false
             }
         }
@@ -315,8 +316,8 @@ fun PlayerScreen(
                     IconButton(
                         onClick = toggleFullScreen,
                         modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(12.dp)
+                            .align(Alignment.TopEnd)
+                            .padding(8.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.FullscreenExit,
@@ -348,6 +349,43 @@ fun PlayerScreen(
                             inactiveTrackColor = Color.White.copy(alpha = 0.2f)
                         )
                     )
+                }
+
+                if (isFullScreen && showOverlay && scenes.isNotEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 36.dp)
+                            .pointerInput(showOverlay) {
+                                awaitPointerEventScope {
+                                    while (true) {
+                                        val downEvent = awaitPointerEvent()
+                                        val anyDown = downEvent.changes.any { it.pressed }
+                                        if (anyDown) {
+                                            isDraggingTimeline = true
+                                            while (true) {
+                                                val event = awaitPointerEvent()
+                                                val stillDown = event.changes.any { it.pressed }
+                                                if (!stillDown) {
+                                                    isDraggingTimeline = false
+                                                    overlayTimerKey++
+                                                    break
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                    ) {
+                        TimelinePreviewBar(
+                            scenes = scenes,
+                            currentPosition = currentPosition,
+                            onSceneClick = { timestampMs ->
+                                overlayTimerKey++
+                                player.seekTo(timestampMs)
+                            }
+                        )
+                    }
                 }
             }
 
@@ -433,12 +471,6 @@ fun PlayerScreen(
                         )
                     }
                 }
-
-                TimelinePreviewBar(
-                    scenes = scenes,
-                    currentPosition = currentPosition,
-                    onSceneClick = { timestampMs -> player.seekTo(timestampMs) }
-                )
 
                 SceneGrid(
                     scenes = scenes,
