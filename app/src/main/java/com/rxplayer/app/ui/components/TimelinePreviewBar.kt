@@ -62,8 +62,6 @@ fun TimelinePreviewBar(
 
         LazyRow(
             state = lazyListState,
-            contentPadding = PaddingValues(horizontal = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             items(scenes, key = { it.sceneIndex }) { scene ->
