@@ -8,7 +8,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -83,15 +84,22 @@ private fun SceneThumbnail(
 ) {
     val context = LocalContext.current
 
+    val imageRatio = remember(scene.thumbnailPath) {
+        val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(scene.thumbnailPath, opts)
+        if (opts.outWidth > 0 && opts.outHeight > 0)
+            opts.outWidth.toFloat() / opts.outHeight.toFloat()
+        else 16f / 9f
+    }
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .width(80.dp)
             .clickable(onClick = onClick)
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
+                .width((64.dp * imageRatio).coerceAtMost(120.dp))
                 .height(64.dp)
                 .clip(RoundedCornerShape(4.dp))
                 .then(
@@ -107,8 +115,8 @@ private fun SceneThumbnail(
                     .crossfade(true)
                     .build(),
                 contentDescription = "Scene at ${SceneDetector.formatTimestamp(scene.timestampMs)}",
-                modifier = Modifier.fillMaxWidth().matchParentSize(),
-                contentScale = ContentScale.Crop
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit
             )
         }
 
