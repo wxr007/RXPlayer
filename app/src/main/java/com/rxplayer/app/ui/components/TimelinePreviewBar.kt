@@ -8,11 +8,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
@@ -85,14 +83,6 @@ private fun SceneThumbnail(
 ) {
     val context = LocalContext.current
 
-    val imageRatio = remember(scene.thumbnailPath) {
-        val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeFile(scene.thumbnailPath, opts)
-        if (opts.outWidth > 0 && opts.outHeight > 0)
-            opts.outWidth.toFloat() / opts.outHeight.toFloat()
-        else 16f / 9f
-    }
-
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
@@ -102,8 +92,7 @@ private fun SceneThumbnail(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(imageRatio)
-                .heightIn(max = 64.dp)
+                .height(64.dp)
                 .clip(RoundedCornerShape(4.dp))
                 .then(
                     if (isCurrent) Modifier.border(
