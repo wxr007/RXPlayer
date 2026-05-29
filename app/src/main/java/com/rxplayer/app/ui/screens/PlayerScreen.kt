@@ -6,6 +6,7 @@ import android.net.Uri
 import android.util.Log
 import android.view.WindowManager
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -33,6 +34,7 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -77,6 +79,7 @@ import com.rxplayer.app.viewmodel.PlayerViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerScreen(
     videoPath: String,
@@ -383,7 +386,12 @@ fun PlayerScreen(
                             thumbColor = Color.White,
                             activeTrackColor = Color.White.copy(alpha = 0.8f),
                             inactiveTrackColor = Color.White.copy(alpha = 0.2f)
-                        )
+                        ),
+                        thumb = {
+                            Canvas(modifier = Modifier.size(20.dp)) {
+                                drawCircle(color = Color.White)
+                            }
+                        }
                     )
                 }
 
@@ -454,7 +462,13 @@ fun PlayerScreen(
                             thumbColor = MaterialTheme.colorScheme.primary,
                             activeTrackColor = MaterialTheme.colorScheme.primary,
                             inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
+                        ),
+                        thumb = {
+                            val thumbColor = MaterialTheme.colorScheme.primary
+                            Canvas(modifier = Modifier.size(20.dp)) {
+                                drawCircle(color = thumbColor)
+                            }
+                        }
                     )
 
                     Text(
