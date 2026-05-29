@@ -147,7 +147,7 @@ class SceneDetector(private val context: Context) {
         while (currentMs < durationMs) {
             val frame = retriever.getFrameAtTime(
                 currentMs * 1000,
-                MediaMetadataRetriever.OPTION_CLOSEST
+                MediaMetadataRetriever.OPTION_CLOSEST_SYNC
             )
 
             if (frame != null) {
