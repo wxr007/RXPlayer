@@ -142,7 +142,7 @@ After every code change, run `./gradlew installDebug` to compile and install, th
 
 ### Scene Thumbnail Aspect Ratio
 - `ThumbnailCache.decodeWithRetriever()` must always call `retriever.release()` in `finally` block.
-- `SceneDetector.saveThumbnail()` scales preserving aspect ratio (fit within w×h, not force) — uses `minOf(width/bitmap.width, height/bitmap.height, 1f)` as scale factor.
+- `SceneDetector.saveThumbnail()` scales preserving aspect ratio (longest edge ≤ `maxOf(w, h)`, default 240px) — uses `minOf(maxDimension / maxOf(bitmap.w, bitmap.h), 1f)` as scale factor.
 - `SceneThumbnail` in `TimelinePreviewBar` determines aspect ratio via `BitmapFactory.Options.inJustDecodeBounds` instead of hardcoded `16f/9f`.
 - `SceneGrid` reads first thumbnail dimensions to choose 4 columns (landscape) or 5 columns (portrait).
 

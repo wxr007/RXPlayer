@@ -175,7 +175,7 @@ fun SceneGrid(
         if (firstPath != null) {
             val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             BitmapFactory.decodeFile(firstPath, opts)
-            if (opts.outWidth > 0 && opts.outHeight > 0 && opts.outHeight > opts.outWidth) 5 else 4
+            if (opts.outWidth > 0 && opts.outHeight > 0 && opts.outHeight > opts.outWidth) 6 else 4
         } else 4
     }
 

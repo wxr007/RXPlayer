@@ -23,8 +23,8 @@ class SceneDetector(private val context: Context) {
         intervalSec: Int = 30,
         intervalMs: Long = 500L,
         threshold: Float = 0.25f,
-        thumbnailWidth: Int = 120,
-        thumbnailHeight: Int = 68,
+        thumbnailWidth: Int = 240,
+        thumbnailHeight: Int = 240,
         onProgress: ((Float) -> Unit)? = null
     ): List<SceneData> = withContext(Dispatchers.Default) {
         val cacheDir = cacheDirFor(uri)
@@ -120,7 +120,8 @@ class SceneDetector(private val context: Context) {
     }
 
     private fun saveThumbnail(bitmap: Bitmap, file: File, width: Int, height: Int) {
-        val scale = minOf(width.toFloat() / bitmap.width, height.toFloat() / bitmap.height, 1f)
+        val maxDimension = maxOf(width, height)
+        val scale = minOf(maxDimension.toFloat() / maxOf(bitmap.width, bitmap.height), 1f)
         val scaledW = (bitmap.width * scale).toInt()
         val scaledH = (bitmap.height * scale).toInt()
         val thumbnail = Bitmap.createScaledBitmap(bitmap, scaledW, scaledH, true)
