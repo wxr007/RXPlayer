@@ -153,11 +153,12 @@ After every code change, run `./gradlew installDebug` to compile and install, th
 - `coverPaths` stores cached JPEG file paths (from `ThumbnailCache.getCachedPath()`), NOT raw video paths.
 - Coil `AsyncImage` in `ThumbnailCell` loads cached JPEG directly — no need for `MediaMetadataRetriever` in UI.
 
-### Folder Display Mode Persistence
-- `FolderEntity.displayMode` (Int: 0=fit, 1=crop) persisted in Room (DB v5, column added via ALTER TABLE migration).
-- `syncFolders()` saves/restores existing `displayMode` values via `modeMap` to prevent `REPLACE` from resetting them.
-- `FolderDao.updateDisplayMode(path, mode)` selectively updates only this column.
-- `VideoListViewModel.toggleDisplayMode()` flips value, persists to Room, and UI reads via `displayMode` StateFlow.
+### Folder Settings Persistence (Room)
+- `FolderEntity` stores per-folder settings keyed by `path` primary key: `displayMode` (0=fit, 1=crop), `columns` (Int), `thumbnailOrientation` (0=landscape, 1=portrait), `sortBy` (String), `sortAscending` (Int), `autoFullscreen` (0=off, 1=on), `playbackMode` (0=single, 1=loop-one, 2=sequential, 3=list-loop).
+- `VideoListViewModel` exposes `StateFlow` for each setting; changes are persisted immediately to Room via selective `update*()` DAO methods.
+- `syncFolders()` preserves all existing setting values via a settings map to prevent `REPLACE` from resetting them.
+- `playbackMode` and `autoFullscreen` are passed as nav arguments from `VideoListScreen` → `PlayerScreen`.
+- DB versions: displayMode (v5), columns+sort (v6), thumbnailOrientation (v7 or later). New columns added via ALTER TABLE migration in `AppDatabase.kt`.
 
 ### Settings System (SettingsManager)
 - Stored in SharedPreferences file `"settings"`, `@Singleton` + `@Inject constructor` (Hilt auto-injects, no AppModule entry needed).
@@ -171,6 +172,12 @@ After every code change, run `./gradlew installDebug` to compile and install, th
 - **"smart"**: Compares 32×32 pixel histograms every 500ms, captures when diff > 0.25 threshold (default). Produces variable number of scenes per video.
 - **"interval"**: Captures one frame every `intervalSec` seconds regardless of scene change. Simpler, deterministic number of scenes (`durationMs / intervalMs`).
 - Selected via SettingsScreen, persisted in SharedPreferences.
+
+### Player Initialization & Playlist
+- **Two-phase init in `PlayerScreen.kt`**: Phase 1 (in `LaunchedEffect(Unit)`) immediately calls `player.setMediaItem(uri)` + `player.prepare()` so user sees video content right away, avoiding the ~5s black screen from `syncFolderFromMediaStore`. Phase 2 (same `LaunchedEffect`) waits for `folderVideos` StateFlow via `snapshotFlow { folderVideos }.firstOrNull { it.isNotEmpty() }`, then uses `player.addMediaItems()` to insert other folder videos around the current one without timeline rebuild.
+- **Why addMediaItems over setMediaItems**: `player.setMediaItems()` replaces the entire playlist, causing brief black screen as ExoPlayer rebuilds its timeline. `addMediaItems` inserts items into the existing timeline — no disruption to the currently-playing video.
+- **Playlist insertion strategy**: Videos before the current video's folder index get inserted at index 0 (shifting current video up). Videos after get appended at `player.mediaItemCount`. No `player.prepare()` is needed after insertion since the player is already prepared.
+- **Playback mode → repeatMode mapping**: `0`(single)→`REPEAT_MODE_OFF`, `1`(loop-one)→`REPEAT_MODE_ONE`, `2`(sequential)→`REPEAT_MODE_OFF`, `3`(list-loop)→`REPEAT_MODE_ALL`. Set once at init; no changes needed after folder playlist is built.
 
 ### Code Generation & Plugins
 - **KSP** for Room compiler (`room-compiler`) and Hilt compiler (`hilt-compiler`).
