@@ -108,10 +108,22 @@ class PlayerViewModel @Inject constructor(
     private fun loadPlaylistVideos() {
         viewModelScope.launch {
             try {
+                val entity = withContext(Dispatchers.IO) {
+                    playlistDao.getPlaylistById(playlistId)
+                }
                 val joined = withContext(Dispatchers.IO) {
                     playlistDao.getVideosInPlaylistSnapshot(playlistId)
                 }
-                _folderVideos.value = joined.map { it.toVideo() }
+                val videos = joined.map { it.toVideo() }
+                val sortBy = entity?.sortBy ?: "date"
+                val sortAscending = entity?.sortAscending ?: 0
+                val sorted = when (sortBy) {
+                    "date" -> videos.sortedBy { it.addedAt }
+                    "duration" -> videos.sortedBy { it.duration }
+                    "size" -> videos.sortedBy { it.fileSize }
+                    else -> videos.sortedBy { it.fileName.lowercase() }
+                }
+                _folderVideos.value = if (sortAscending == 1) sorted else sorted.reversed()
             } catch (e: Exception) {
                 Log.e("RXPlayer", "Failed to load playlist videos", e)
             }
