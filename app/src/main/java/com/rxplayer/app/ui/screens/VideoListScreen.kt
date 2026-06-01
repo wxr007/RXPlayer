@@ -548,7 +548,7 @@ private fun formatFileSize(bytes: Long): String {
 private fun simplifyPath(filePath: String): String {
     val decoded = Uri.decode(filePath)
     return if (decoded.startsWith("content://")) {
-        decoded.substringAfter("primary:")
+        decoded.substringAfter("/document/").removePrefix("primary:")
     } else {
         decoded.removePrefix("/storage/emulated/0/")
     }
