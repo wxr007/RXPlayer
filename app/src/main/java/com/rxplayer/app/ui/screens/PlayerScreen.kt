@@ -127,13 +127,21 @@ fun PlayerScreen(
         }
         player.prepare()
 
-        // For playlist modes (sequential/list loop), replace with folder playlist
-        // once folder videos are loaded. No extra prepare() — no flicker.
+        // For playlist modes, build full folder playlist by inserting items
+        // around the already-playing video. addMediaItems avoids timeline
+        // rebuild that causes brief black screen on setMediaItems().
         if (playbackMode >= 2) {
             val list = snapshotFlow { folderVideos }.firstOrNull { it.isNotEmpty() } ?: return@LaunchedEffect
             val mediaItems = list.map { MediaItem.fromUri(Uri.parse(it.filePath)) }
             val startIndex = list.indexOfFirst { it.filePath == videoPath }.coerceAtLeast(0)
-            player.setMediaItems(mediaItems, startIndex, player.currentPosition)
+            val before = mediaItems.subList(0, startIndex)
+            val after = mediaItems.subList(startIndex + 1, mediaItems.size)
+            if (before.isNotEmpty()) {
+                player.addMediaItems(0, before)
+            }
+            if (after.isNotEmpty()) {
+                player.addMediaItems(player.mediaItemCount, after)
+            }
         }
     }
 
