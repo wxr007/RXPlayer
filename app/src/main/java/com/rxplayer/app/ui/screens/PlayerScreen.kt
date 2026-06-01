@@ -307,10 +307,10 @@ fun PlayerScreen(
                             showOverlay = showOverlay,
                             onDoubleTap = { xFraction ->
                                 val stepMs = seekStep * 1000L
-                                if (xFraction < 0.25f) {
+                                if (xFraction < 0.2f) {
                                     player.seekTo((player.currentPosition - stepMs).coerceAtLeast(0))
                                     showSeekIndicator = "-${seekStep}s"
-                                } else if (xFraction > 0.75f) {
+                                } else if (xFraction > 0.8f) {
                                     player.seekTo((player.currentPosition + stepMs).coerceAtMost(totalDuration))
                                     showSeekIndicator = "+${seekStep}s"
                                 } else {
