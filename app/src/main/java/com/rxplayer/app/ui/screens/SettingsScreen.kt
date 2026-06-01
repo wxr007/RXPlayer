@@ -35,6 +35,7 @@ fun SettingsScreen(
     val analysisMode by viewModel.analysisMode.collectAsState()
     val analysisInterval by viewModel.analysisInterval.collectAsState()
     val seekStep by viewModel.seekStep.collectAsState()
+    val resolutionDisplay by viewModel.resolutionDisplay.collectAsState()
 
     Column(
         modifier = Modifier
@@ -175,6 +176,32 @@ fun SettingsScreen(
                     activeTrackColor = MaterialTheme.colorScheme.primary
                 )
             )
+        }
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+        Text(
+            text = "分辨率显示格式",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 4.dp)
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            listOf("full" to "1920×1080", "height" to "1080").forEach { (key, label) ->
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.clickable { viewModel.setResolutionDisplay(key) }
+                ) {
+                    RadioButton(
+                        selected = resolutionDisplay == key,
+                        onClick = { viewModel.setResolutionDisplay(key) }
+                    )
+                    Text(text = label, style = MaterialTheme.typography.bodySmall)
+                }
+            }
         }
     }
 }

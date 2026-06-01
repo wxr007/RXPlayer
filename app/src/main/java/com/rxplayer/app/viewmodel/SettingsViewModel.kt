@@ -16,6 +16,7 @@ class SettingsViewModel @Inject constructor(
     val analysisMode: StateFlow<String> = settingsManager.analysisMode
     val analysisInterval: StateFlow<Int> = settingsManager.analysisInterval
     val seekStep: StateFlow<Int> = settingsManager.seekStep
+    val resolutionDisplay: StateFlow<String> = settingsManager.resolutionDisplay
 
     fun setThemeMode(mode: String) {
         settingsManager.setThemeMode(mode)
@@ -35,5 +36,9 @@ class SettingsViewModel @Inject constructor(
 
     fun setSeekStep(seconds: Int) {
         settingsManager.setSeekStep(seconds)
+    }
+
+    fun setResolutionDisplay(mode: String) {
+        settingsManager.setResolutionDisplay(mode)
     }
 }

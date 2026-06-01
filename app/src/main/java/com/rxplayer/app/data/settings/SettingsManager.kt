@@ -28,11 +28,15 @@ class SettingsManager @Inject constructor(
     private val _seekStep = MutableStateFlow(readSeekStep())
     val seekStep: StateFlow<Int> = _seekStep
 
+    private val _resolutionDisplay = MutableStateFlow(readResolutionDisplay())
+    val resolutionDisplay: StateFlow<String> = _resolutionDisplay
+
     private fun readThemeMode(): String = prefs.getString("theme_mode", "system") ?: "system"
     private fun readAutoPlay(): Boolean = prefs.getBoolean("auto_play", true)
     private fun readAnalysisMode(): String = prefs.getString("analysis_mode", "smart") ?: "smart"
     private fun readAnalysisInterval(): Int = prefs.getInt("analysis_interval", 30)
     private fun readSeekStep(): Int = prefs.getInt("seek_step", 10)
+    private fun readResolutionDisplay(): String = prefs.getString("resolution_display", "full") ?: "full"
 
     fun setThemeMode(mode: String) {
         prefs.edit().putString("theme_mode", mode).apply()
@@ -59,5 +63,10 @@ class SettingsManager @Inject constructor(
         val clamped = seconds.coerceIn(5, 15)
         prefs.edit().putInt("seek_step", clamped).apply()
         _seekStep.value = clamped
+    }
+
+    fun setResolutionDisplay(mode: String) {
+        prefs.edit().putString("resolution_display", mode).apply()
+        _resolutionDisplay.value = mode
     }
 }

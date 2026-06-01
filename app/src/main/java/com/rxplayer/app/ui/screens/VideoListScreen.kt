@@ -78,6 +78,7 @@ fun VideoListScreen(
     val portrait by viewModel.thumbnailOrientation.collectAsState()
     val autoFullscreen by viewModel.autoFullscreen.collectAsState()
     val playbackMode by viewModel.playbackMode.collectAsState()
+    val resolutionDisplay by viewModel.resolutionDisplay.collectAsState()
     var showLayoutDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(folderPath) {
@@ -136,7 +137,8 @@ fun VideoListScreen(
                     video = video,
                     cropMode = cropMode,
                     portrait = portrait,
-                        onClick = { onVideoClick(video.filePath, autoFullscreen, playbackMode) }
+                    resolutionDisplay = resolutionDisplay,
+                    onClick = { onVideoClick(video.filePath, autoFullscreen, playbackMode) }
                 )
             }
         }
@@ -345,6 +347,7 @@ private fun VideoGridItem(
     video: Video,
     cropMode: Boolean,
     portrait: Boolean,
+    resolutionDisplay: String = "full",
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
@@ -390,6 +393,14 @@ private fun VideoGridItem(
                 }
 
                 if (video.resolution.isNotEmpty()) {
+                    val parts = video.resolution.split("x")
+                    val displayText = if (resolutionDisplay == "height" && parts.size == 2) {
+                        parts[1]
+                    } else if (parts.size == 2) {
+                        "${parts[0]}×${parts[1]}"
+                    } else {
+                        video.resolution
+                    }
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopStart)
@@ -398,7 +409,7 @@ private fun VideoGridItem(
                             .padding(horizontal = 4.dp, vertical = 1.dp)
                     ) {
                         Text(
-                            text = video.resolution,
+                            text = displayText,
                             style = MaterialTheme.typography.labelSmall,
                             color = Color.White,
                             fontSize = 10.sp

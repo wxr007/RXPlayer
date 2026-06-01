@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rxplayer.app.data.model.Video
 import com.rxplayer.app.data.repository.VideoRepository
+import com.rxplayer.app.data.settings.SettingsManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,7 +16,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class VideoListViewModel @Inject constructor(
-    private val repository: VideoRepository
+    private val repository: VideoRepository,
+    private val settingsManager: SettingsManager
 ) : ViewModel() {
 
     private val _videos = MutableStateFlow<List<Video>>(emptyList())
@@ -41,6 +43,8 @@ class VideoListViewModel @Inject constructor(
 
     private val _playbackMode = MutableStateFlow(0)
     val playbackMode: StateFlow<Int> = _playbackMode
+
+    val resolutionDisplay: StateFlow<String> = settingsManager.resolutionDisplay
 
     private var synced = false
     private var currentFolderPath = ""
