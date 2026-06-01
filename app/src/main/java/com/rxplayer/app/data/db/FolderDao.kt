@@ -29,6 +29,9 @@ interface FolderDao {
     @Query("UPDATE folders SET thumbnailOrientation = :orientation WHERE `path` = :path")
     suspend fun updateThumbnailOrientation(path: String, orientation: Int)
 
+    @Query("UPDATE folders SET autoFullscreen = :enabled WHERE `path` = :path")
+    suspend fun updateAutoFullscreen(path: String, enabled: Int)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(folders: List<FolderEntity>)
 

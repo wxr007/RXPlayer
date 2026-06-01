@@ -60,7 +60,7 @@ import com.rxplayer.app.viewmodel.VideoListViewModel
 @Composable
 fun VideoListScreen(
     folderPath: String,
-    onVideoClick: (String) -> Unit,
+    onVideoClick: (String, Boolean) -> Unit,
     onBack: () -> Unit,
     viewModel: VideoListViewModel = hiltViewModel()
 ) {
@@ -76,6 +76,7 @@ fun VideoListScreen(
     val sortBy by viewModel.sortBy.collectAsState()
     val sortAscending by viewModel.sortAscending.collectAsState()
     val portrait by viewModel.thumbnailOrientation.collectAsState()
+    val autoFullscreen by viewModel.autoFullscreen.collectAsState()
     var showLayoutDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(folderPath) {
@@ -89,12 +90,14 @@ fun VideoListScreen(
             currentSortBy = sortBy,
             currentSortAscending = sortAscending,
             currentPortrait = portrait,
+            currentAutoFullscreen = autoFullscreen,
             onDismiss = { showLayoutDialog = false },
-            onApply = { columns, crop, newSortBy, ascending, isPortrait ->
+            onApply = { columns, crop, newSortBy, ascending, isPortrait, isAutoFullscreen ->
                 viewModel.setGridColumns(columns)
                 viewModel.setDisplayMode(crop)
                 viewModel.setSort(newSortBy, ascending)
                 viewModel.setThumbnailOrientation(isPortrait)
+                viewModel.setAutoFullscreen(isAutoFullscreen)
                 showLayoutDialog = false
             }
         )
@@ -109,7 +112,7 @@ fun VideoListScreen(
                     IconButton(onClick = { showLayoutDialog = true }) {
                         Icon(
                             imageVector = Icons.Default.Settings,
-                            contentDescription = "布局设置"
+                            contentDescription = "文件夹设置"
                         )
                     }
                 }
@@ -130,7 +133,7 @@ fun VideoListScreen(
                     video = video,
                     cropMode = cropMode,
                     portrait = portrait,
-                    onClick = { onVideoClick(video.filePath) }
+                        onClick = { onVideoClick(video.filePath, autoFullscreen) }
                 )
             }
         }
@@ -144,19 +147,21 @@ private fun LayoutSettingsDialog(
     currentSortBy: String,
     currentSortAscending: Boolean,
     currentPortrait: Boolean,
+    currentAutoFullscreen: Boolean,
     onDismiss: () -> Unit,
-    onApply: (columns: Int, crop: Boolean, sortBy: String, ascending: Boolean, portrait: Boolean) -> Unit
+    onApply: (columns: Int, crop: Boolean, sortBy: String, ascending: Boolean, portrait: Boolean, autoFullscreen: Boolean) -> Unit
 ) {
     var selectedColumns by remember { mutableStateOf(currentColumns) }
     var selectedCrop by remember { mutableStateOf(currentCropMode) }
     var selectedSortBy by remember { mutableStateOf(currentSortBy) }
     var selectedAscending by remember { mutableStateOf(currentSortAscending) }
     var selectedPortrait by remember { mutableStateOf(currentPortrait) }
+    var selectedAutoFullscreen by remember { mutableStateOf(currentAutoFullscreen) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text("布局设置", style = MaterialTheme.typography.titleMedium)
+            Text("文件夹设置", style = MaterialTheme.typography.titleMedium)
         },
         text = {
             Column {
@@ -268,11 +273,36 @@ private fun LayoutSettingsDialog(
                         Text("竖屏", style = MaterialTheme.typography.bodySmall)
                     }
                 }
+
+                Text(
+                    "自动全屏",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        RadioButton(
+                            selected = !selectedAutoFullscreen,
+                            onClick = { selectedAutoFullscreen = false }
+                        )
+                        Text("关闭", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        RadioButton(
+                            selected = selectedAutoFullscreen,
+                            onClick = { selectedAutoFullscreen = true }
+                        )
+                        Text("开启", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
             }
         },
         confirmButton = {
             TextButton(onClick = {
-                onApply(selectedColumns, selectedCrop, selectedSortBy, selectedAscending, selectedPortrait)
+                onApply(selectedColumns, selectedCrop, selectedSortBy, selectedAscending, selectedPortrait, selectedAutoFullscreen)
             }) {
                 Text("确定")
             }

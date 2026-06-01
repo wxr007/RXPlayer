@@ -117,8 +117,8 @@ fun RXPlayerNavHost() {
                 val folderPath = Route.VideoList.decodePath(backStackEntry.arguments?.getString("folderPath") ?: "")
                 VideoListScreen(
                     folderPath = folderPath,
-                    onVideoClick = { videoPath ->
-                        navController.navigate(Route.Player.createRoute(videoPath))
+                    onVideoClick = { videoPath, autoFullscreen ->
+                        navController.navigate(Route.Player.createRoute(videoPath, if (autoFullscreen) 1 else 0))
                     },
                     onBack = { navController.popBackStack() }
                 )
@@ -142,11 +142,16 @@ fun RXPlayerNavHost() {
             }
             composable(
                 route = Route.Player.route,
-                arguments = listOf(navArgument("videoPath") { type = NavType.StringType })
+                arguments = listOf(
+                    navArgument("videoPath") { type = NavType.StringType },
+                    navArgument("autoFullscreen") { type = NavType.IntType; defaultValue = 0 }
+                )
             ) { backStackEntry ->
                 val videoPath = Route.Player.decodePath(backStackEntry.arguments?.getString("videoPath") ?: "")
+                val autoFullscreen = backStackEntry.arguments?.getInt("autoFullscreen") ?: 0
                 PlayerScreen(
                     videoPath = videoPath,
+                    autoFullscreen = autoFullscreen == 1,
                     onBack = { navController.popBackStack() }
                 )
             }

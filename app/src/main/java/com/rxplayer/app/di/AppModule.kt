@@ -26,7 +26,7 @@ object AppModule {
             context,
             AppDatabase::class.java,
             "rxplayer.db"
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
             .build()
     }
 
@@ -43,6 +43,12 @@ object AppModule {
     @Provides
     fun provideFolderDao(database: AppDatabase): FolderDao {
         return database.folderDao()
+    }
+
+    private val MIGRATION_7_8 = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `folders` ADD COLUMN `autoFullscreen` INTEGER NOT NULL DEFAULT 0")
+        }
     }
 
     private val MIGRATION_6_7 = object : Migration(6, 7) {

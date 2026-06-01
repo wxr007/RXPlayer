@@ -14,5 +14,6 @@ data class FolderEntity(
     val gridColumns: Int = 3,
     val sortBy: String = "date",
     val sortAscending: Int = 0,
-    val thumbnailOrientation: Int = 0
+    val thumbnailOrientation: Int = 0,
+    val autoFullscreen: Int = 0
 )

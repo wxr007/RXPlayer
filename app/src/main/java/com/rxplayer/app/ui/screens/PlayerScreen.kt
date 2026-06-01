@@ -84,6 +84,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 @Composable
 fun PlayerScreen(
     videoPath: String,
+    autoFullscreen: Boolean = false,
     onBack: () -> Unit,
     viewModel: PlayerViewModel = hiltViewModel()
 ) {
@@ -103,14 +104,6 @@ fun PlayerScreen(
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
     var privacyMaskEnabled by remember { mutableStateOf(false) }
 
-    val snackbarHostState = remember { SnackbarHostState() }
-
-    val scenes by viewModel.scenes.collectAsState()
-    val analyzingProgress by viewModel.analyzingProgress.collectAsState()
-    val isAnalyzing by viewModel.isAnalyzing.collectAsState()
-    val autoPlay by viewModel.autoPlay.collectAsState()
-    val seekStep by viewModel.seekStep.collectAsState()
-
     val decodedPath = Uri.decode(videoPath)
     val videoName = decodedPath.substringAfterLast("/")
 
@@ -121,8 +114,43 @@ fun PlayerScreen(
         }
     }
 
+    val toggleFullScreen: () -> Unit = {
+        val goingFullScreen = !isFullScreen
+        isFullScreen = goingFullScreen
+        showOverlay = true
+        activity?.let { act ->
+            if (goingFullScreen) {
+                val videoSize = player.videoSize
+                if (videoSize.width > videoSize.height) {
+                    act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                }
+                val controller = WindowInsetsControllerCompat(act.window, act.window.decorView)
+                controller.hide(WindowInsetsCompat.Type.systemBars())
+                controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            } else {
+                act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+                WindowInsetsControllerCompat(act.window, act.window.decorView)
+                    .show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    val scenes by viewModel.scenes.collectAsState()
+    val analyzingProgress by viewModel.analyzingProgress.collectAsState()
+    val isAnalyzing by viewModel.isAnalyzing.collectAsState()
+    val autoPlay by viewModel.autoPlay.collectAsState()
+    val seekStep by viewModel.seekStep.collectAsState()
+
     LaunchedEffect(autoPlay) {
         player.playWhenReady = autoPlay
+    }
+
+    LaunchedEffect(autoFullscreen) {
+        if (autoFullscreen) {
+            toggleFullScreen()
+        }
     }
 
     LaunchedEffect(player) {
@@ -155,27 +183,6 @@ fun PlayerScreen(
             delay(3000)
             if (!isDraggingSlider && !isDraggingTimeline) {
                 showOverlay = false
-            }
-        }
-    }
-
-    val toggleFullScreen: () -> Unit = {
-        val goingFullScreen = !isFullScreen
-        isFullScreen = goingFullScreen
-        showOverlay = true
-        activity?.let { act ->
-            if (goingFullScreen) {
-                val videoSize = player.videoSize
-                if (videoSize.width > videoSize.height) {
-                    act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                }
-                val controller = WindowInsetsControllerCompat(act.window, act.window.decorView)
-                controller.hide(WindowInsetsCompat.Type.systemBars())
-                controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            } else {
-                act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
-                WindowInsetsControllerCompat(act.window, act.window.decorView)
-                    .show(WindowInsetsCompat.Type.systemBars())
             }
         }
     }

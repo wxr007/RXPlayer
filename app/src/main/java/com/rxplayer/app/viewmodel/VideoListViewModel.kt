@@ -36,6 +36,9 @@ class VideoListViewModel @Inject constructor(
     private val _thumbnailOrientation = MutableStateFlow(false)
     val thumbnailOrientation: StateFlow<Boolean> = _thumbnailOrientation
 
+    private val _autoFullscreen = MutableStateFlow(false)
+    val autoFullscreen: StateFlow<Boolean> = _autoFullscreen
+
     private var synced = false
     private var currentFolderPath = ""
 
@@ -47,6 +50,7 @@ class VideoListViewModel @Inject constructor(
         loadGridColumns(folderPath)
         loadSortSettings(folderPath)
         loadThumbnailOrientation(folderPath)
+        loadAutoFullscreen(folderPath)
     }
 
     fun setDisplayMode(mode: Boolean) {
@@ -121,6 +125,24 @@ class VideoListViewModel @Inject constructor(
                 repository.getThumbnailOrientation(folderPath)
             }
             _thumbnailOrientation.value = orientation == 1
+        }
+    }
+
+    fun setAutoFullscreen(enabled: Boolean) {
+        _autoFullscreen.value = enabled
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                repository.setAutoFullscreen(currentFolderPath, if (enabled) 1 else 0)
+            }
+        }
+    }
+
+    private fun loadAutoFullscreen(folderPath: String) {
+        viewModelScope.launch {
+            val enabled = withContext(Dispatchers.IO) {
+                repository.getAutoFullscreen(folderPath)
+            }
+            _autoFullscreen.value = enabled == 1
         }
     }
 
