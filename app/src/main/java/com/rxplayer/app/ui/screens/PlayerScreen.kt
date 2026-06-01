@@ -52,6 +52,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -79,6 +80,8 @@ import com.rxplayer.app.ui.components.SceneGrid
 import com.rxplayer.app.ui.components.TimelinePreviewBar
 import com.rxplayer.app.viewmodel.PlayerViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.withTimeoutOrNull
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -115,15 +118,13 @@ fun PlayerScreen(
     }
 
     val folderVideos by viewModel.folderVideos.collectAsState()
-    var playerReady by remember { mutableStateOf(false) }
 
     @OptIn(UnstableApi::class)
-    LaunchedEffect(folderVideos, playbackMode) {
-        if (playerReady) return@LaunchedEffect
+    LaunchedEffect(playbackMode) {
         if (playbackMode >= 2) {
-            if (folderVideos.isEmpty()) return@LaunchedEffect
-            val mediaItems = folderVideos.map { MediaItem.fromUri(Uri.parse(it.filePath)) }
-            val startIndex = folderVideos.indexOfFirst { it.filePath == videoPath }.coerceAtLeast(0)
+            val list = snapshotFlow { folderVideos }.firstOrNull { it.isNotEmpty() } ?: return@LaunchedEffect
+            val mediaItems = list.map { MediaItem.fromUri(Uri.parse(it.filePath)) }
+            val startIndex = list.indexOfFirst { it.filePath == videoPath }.coerceAtLeast(0)
             player.setMediaItems(mediaItems, startIndex, 0)
         } else {
             player.setMediaItem(MediaItem.fromUri(Uri.parse(videoPath)))
@@ -134,7 +135,6 @@ fun PlayerScreen(
             else -> ExoPlayer.REPEAT_MODE_OFF
         }
         player.prepare()
-        playerReady = true
     }
 
     val toggleFullScreen: () -> Unit = {
