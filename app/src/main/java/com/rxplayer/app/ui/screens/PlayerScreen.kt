@@ -111,30 +111,29 @@ fun PlayerScreen(
     val videoName = decodedPath.substringAfterLast("/")
 
     val player = remember {
-        ExoPlayer.Builder(context).build().apply {
-            setMediaItem(MediaItem.fromUri(Uri.parse(videoPath)))
-            prepare()
-        }
+        ExoPlayer.Builder(context).build()
     }
 
     val folderVideos by viewModel.folderVideos.collectAsState()
-    var playlistSetup by remember { mutableStateOf(false) }
+    var playerReady by remember { mutableStateOf(false) }
 
     @OptIn(UnstableApi::class)
     LaunchedEffect(folderVideos, playbackMode) {
-        if (playlistSetup) return@LaunchedEffect
+        if (playerReady) return@LaunchedEffect
         if (playbackMode >= 2 && folderVideos.isNotEmpty()) {
             val mediaItems = folderVideos.map { MediaItem.fromUri(Uri.parse(it.filePath)) }
             val startIndex = folderVideos.indexOfFirst { it.filePath == videoPath }.coerceAtLeast(0)
-            player.setMediaItems(mediaItems, startIndex, player.currentPosition)
-            player.prepare()
-            playlistSetup = true
+            player.setMediaItems(mediaItems, startIndex, 0)
+        } else {
+            player.setMediaItem(MediaItem.fromUri(Uri.parse(videoPath)))
         }
         player.repeatMode = when (playbackMode) {
             1 -> ExoPlayer.REPEAT_MODE_ONE
             3 -> ExoPlayer.REPEAT_MODE_ALL
             else -> ExoPlayer.REPEAT_MODE_OFF
         }
+        player.prepare()
+        playerReady = true
     }
 
     val toggleFullScreen: () -> Unit = {
