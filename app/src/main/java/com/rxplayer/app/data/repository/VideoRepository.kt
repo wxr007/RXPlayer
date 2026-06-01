@@ -3,6 +3,7 @@ package com.rxplayer.app.data.repository
 import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import android.os.Build
 import android.provider.MediaStore
 import android.provider.MediaStore.Video.Media
 import androidx.documentfile.provider.DocumentFile
@@ -249,30 +250,37 @@ class VideoRepository @Inject constructor(
         val videoFiles = mutableListOf<DocumentFile>()
         scanVideoFiles(root, videoFiles)
         return videoFiles.mapIndexed { index, file ->
+            val (duration, width, height) = getVideoInfo(file.uri)
             Video(
                 id = index.toLong(),
                 folderPath = safUri,
                 fileName = file.name ?: "unknown",
                 filePath = file.uri.toString(),
-                duration = getDuration(file.uri),
+                duration = duration,
                 fileSize = file.length(),
-                resolution = "",
+                resolution = if (width > 0 && height > 0) "${width}x${height}" else "",
                 mimeType = file.type ?: "video/mp4",
                 addedAt = file.lastModified()
             )
         }
     }
 
-    private fun getDuration(uri: Uri): Long {
+    private fun getVideoInfo(uri: Uri): Triple<Long, Int, Int> {
         val retriever = MediaMetadataRetriever()
         return try {
             retriever.setDataSource(context, uri)
-            val durationStr = retriever.extractMetadata(
+            val duration = retriever.extractMetadata(
                 MediaMetadataRetriever.METADATA_KEY_DURATION
-            )
-            durationStr?.toLongOrNull() ?: 0L
+            )?.toLongOrNull() ?: 0L
+            val width = retriever.extractMetadata(
+                MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH
+            )?.toIntOrNull() ?: 0
+            val height = retriever.extractMetadata(
+                MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT
+            )?.toIntOrNull() ?: 0
+            Triple(duration, width, height)
         } catch (_: Exception) {
-            0L
+            Triple(0L, 0, 0)
         } finally {
             retriever.release()
         }
@@ -300,14 +308,18 @@ class VideoRepository @Inject constructor(
     private fun queryMediaStore(folderPath: String): List<Video> {
         val videos = mutableListOf<Video>()
         val uri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
-        val projection = arrayOf(
+        val projection = mutableListOf(
             Media._ID, Media.DATA, Media.DISPLAY_NAME,
             Media.DURATION, Media.SIZE, Media.MIME_TYPE, Media.DATE_ADDED
         )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            projection.add(Media.WIDTH)
+            projection.add(Media.HEIGHT)
+        }
         val escapedPath = folderPath.replace("\\", "\\\\").replace("_", "\\_").replace("%", "\\%")
         val selection = "${Media.DATA} LIKE ? ESCAPE '\\'"
         val selectionArgs = arrayOf("$escapedPath/%")
-        context.contentResolver.query(uri, projection, selection, selectionArgs, null)?.use { cursor ->
+        context.contentResolver.query(uri, projection.toTypedArray(), selection, selectionArgs, null)?.use { cursor ->
             val idIdx = cursor.getColumnIndexOrThrow(Media._ID)
             val dataIdx = cursor.getColumnIndexOrThrow(Media.DATA)
             val nameIdx = cursor.getColumnIndexOrThrow(Media.DISPLAY_NAME)
@@ -315,17 +327,20 @@ class VideoRepository @Inject constructor(
             val sizeIdx = cursor.getColumnIndexOrThrow(Media.SIZE)
             val mimeIdx = cursor.getColumnIndexOrThrow(Media.MIME_TYPE)
             val dateIdx = cursor.getColumnIndexOrThrow(Media.DATE_ADDED)
+            val widthIdx = cursor.getColumnIndex(Media.WIDTH)
+            val heightIdx = cursor.getColumnIndex(Media.HEIGHT)
             while (cursor.moveToNext()) {
-                val filePath = cursor.getString(dataIdx)
+                val w = if (widthIdx >= 0) cursor.getInt(widthIdx) else 0
+                val h = if (heightIdx >= 0) cursor.getInt(heightIdx) else 0
                 videos.add(
                     Video(
                         id = cursor.getLong(idIdx),
                         folderPath = folderPath,
                         fileName = cursor.getString(nameIdx),
-                        filePath = filePath,
+                        filePath = cursor.getString(dataIdx),
                         duration = cursor.getLong(durIdx),
                         fileSize = cursor.getLong(sizeIdx),
-                        resolution = "",
+                        resolution = if (w > 0 && h > 0) "${w}x${h}" else "",
                         mimeType = cursor.getString(mimeIdx),
                         addedAt = cursor.getLong(dateIdx) * 1000
                     )
