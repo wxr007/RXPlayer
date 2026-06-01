@@ -33,6 +33,9 @@ class VideoListViewModel @Inject constructor(
     private val _sortAscending = MutableStateFlow(false)
     val sortAscending: StateFlow<Boolean> = _sortAscending
 
+    private val _thumbnailOrientation = MutableStateFlow(false)
+    val thumbnailOrientation: StateFlow<Boolean> = _thumbnailOrientation
+
     private var synced = false
     private var currentFolderPath = ""
 
@@ -43,6 +46,7 @@ class VideoListViewModel @Inject constructor(
         loadDisplayMode(folderPath)
         loadGridColumns(folderPath)
         loadSortSettings(folderPath)
+        loadThumbnailOrientation(folderPath)
     }
 
     fun setDisplayMode(mode: Boolean) {
@@ -99,6 +103,24 @@ class VideoListViewModel @Inject constructor(
                 repository.getGridColumns(folderPath)
             }
             _gridColumns.value = columns
+        }
+    }
+
+    fun setThumbnailOrientation(portrait: Boolean) {
+        _thumbnailOrientation.value = portrait
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                repository.setThumbnailOrientation(currentFolderPath, if (portrait) 1 else 0)
+            }
+        }
+    }
+
+    private fun loadThumbnailOrientation(folderPath: String) {
+        viewModelScope.launch {
+            val orientation = withContext(Dispatchers.IO) {
+                repository.getThumbnailOrientation(folderPath)
+            }
+            _thumbnailOrientation.value = orientation == 1
         }
     }
 

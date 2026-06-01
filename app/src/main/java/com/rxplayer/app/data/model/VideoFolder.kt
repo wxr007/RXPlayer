@@ -10,5 +10,6 @@ data class VideoFolder(
     val displayMode: Int = 1,
     val gridColumns: Int = 3,
     val sortBy: String = "date",
-    val sortAscending: Int = 0
+    val sortAscending: Int = 0,
+    val thumbnailOrientation: Int = 0
 )

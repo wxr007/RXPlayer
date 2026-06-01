@@ -12,7 +12,7 @@ import androidx.room.TypeConverters
         VideoEntity::class,
         FolderEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

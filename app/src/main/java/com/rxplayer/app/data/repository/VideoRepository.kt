@@ -37,6 +37,7 @@ class VideoRepository @Inject constructor(
 
     suspend fun syncFolders() {
         val modeMap = folderDao.getAllFoldersSnapshot().associate { it.path to it.displayMode }
+        val orientationMap = folderDao.getAllFoldersSnapshot().associate { it.path to it.thumbnailOrientation }
         val mediaStoreFolders = getVideoFolders()
         val safUris = getSavedSafUris()
         val safFolders = safUris.mapNotNull { scanSafFolder(it) }
@@ -44,6 +45,9 @@ class VideoRepository @Inject constructor(
         folderDao.insertAll(allFolders)
         modeMap.forEach { (path, mode) ->
             if (mode != 0) folderDao.updateDisplayMode(path, mode)
+        }
+        orientationMap.forEach { (path, orientation) ->
+            if (orientation != 0) folderDao.updateThumbnailOrientation(path, orientation)
         }
     }
 
@@ -78,6 +82,14 @@ class VideoRepository @Inject constructor(
 
     suspend fun setSort(folderPath: String, sortBy: String, ascending: Int) {
         folderDao.updateSort(folderPath, sortBy, ascending)
+    }
+
+    suspend fun getThumbnailOrientation(folderPath: String): Int {
+        return folderDao.getByPath(folderPath)?.thumbnailOrientation ?: 0
+    }
+
+    suspend fun setThumbnailOrientation(folderPath: String, orientation: Int) {
+        folderDao.updateThumbnailOrientation(folderPath, orientation)
     }
 
     suspend fun scanSafFolderWithProgress(
@@ -335,7 +347,8 @@ private fun VideoFolder.toEntity() = com.rxplayer.app.data.db.FolderEntity(
     displayMode = displayMode,
     gridColumns = gridColumns,
     sortBy = sortBy,
-    sortAscending = sortAscending
+    sortAscending = sortAscending,
+    thumbnailOrientation = thumbnailOrientation
 )
 
 private fun com.rxplayer.app.data.db.FolderEntity.toModel() = VideoFolder(
@@ -347,5 +360,6 @@ private fun com.rxplayer.app.data.db.FolderEntity.toModel() = VideoFolder(
     displayMode = displayMode,
     gridColumns = gridColumns,
     sortBy = sortBy,
-    sortAscending = sortAscending
+    sortAscending = sortAscending,
+    thumbnailOrientation = thumbnailOrientation
 )

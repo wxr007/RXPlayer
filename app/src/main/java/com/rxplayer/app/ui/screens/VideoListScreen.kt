@@ -75,6 +75,7 @@ fun VideoListScreen(
     val gridColumns by viewModel.gridColumns.collectAsState()
     val sortBy by viewModel.sortBy.collectAsState()
     val sortAscending by viewModel.sortAscending.collectAsState()
+    val portrait by viewModel.thumbnailOrientation.collectAsState()
     var showLayoutDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(folderPath) {
@@ -87,11 +88,13 @@ fun VideoListScreen(
             currentCropMode = cropMode,
             currentSortBy = sortBy,
             currentSortAscending = sortAscending,
+            currentPortrait = portrait,
             onDismiss = { showLayoutDialog = false },
-            onApply = { columns, crop, newSortBy, ascending ->
+            onApply = { columns, crop, newSortBy, ascending, isPortrait ->
                 viewModel.setGridColumns(columns)
                 viewModel.setDisplayMode(crop)
                 viewModel.setSort(newSortBy, ascending)
+                viewModel.setThumbnailOrientation(isPortrait)
                 showLayoutDialog = false
             }
         )
@@ -126,6 +129,7 @@ fun VideoListScreen(
                 VideoGridItem(
                     video = video,
                     cropMode = cropMode,
+                    portrait = portrait,
                     onClick = { onVideoClick(video.filePath) }
                 )
             }
@@ -139,13 +143,15 @@ private fun LayoutSettingsDialog(
     currentCropMode: Boolean,
     currentSortBy: String,
     currentSortAscending: Boolean,
+    currentPortrait: Boolean,
     onDismiss: () -> Unit,
-    onApply: (columns: Int, crop: Boolean, sortBy: String, ascending: Boolean) -> Unit
+    onApply: (columns: Int, crop: Boolean, sortBy: String, ascending: Boolean, portrait: Boolean) -> Unit
 ) {
     var selectedColumns by remember { mutableStateOf(currentColumns) }
     var selectedCrop by remember { mutableStateOf(currentCropMode) }
     var selectedSortBy by remember { mutableStateOf(currentSortBy) }
     var selectedAscending by remember { mutableStateOf(currentSortAscending) }
+    var selectedPortrait by remember { mutableStateOf(currentPortrait) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -237,11 +243,36 @@ private fun LayoutSettingsDialog(
                         Text("降序", style = MaterialTheme.typography.bodySmall)
                     }
                 }
+
+                Text(
+                    "缩略图方向",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        RadioButton(
+                            selected = !selectedPortrait,
+                            onClick = { selectedPortrait = false }
+                        )
+                        Text("横屏", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        RadioButton(
+                            selected = selectedPortrait,
+                            onClick = { selectedPortrait = true }
+                        )
+                        Text("竖屏", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
             }
         },
         confirmButton = {
             TextButton(onClick = {
-                onApply(selectedColumns, selectedCrop, selectedSortBy, selectedAscending)
+                onApply(selectedColumns, selectedCrop, selectedSortBy, selectedAscending, selectedPortrait)
             }) {
                 Text("确定")
             }
@@ -258,6 +289,7 @@ private fun LayoutSettingsDialog(
 private fun VideoGridItem(
     video: Video,
     cropMode: Boolean,
+    portrait: Boolean,
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
@@ -278,10 +310,11 @@ private fun VideoGridItem(
             .clickable(onClick = onClick)
     ) {
         Column {
+            val thumbAspectRatio = if (portrait) 9f / 16f else 16f / 9f
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
+                    .aspectRatio(thumbAspectRatio)
                     .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {

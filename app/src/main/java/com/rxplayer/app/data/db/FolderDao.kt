@@ -26,6 +26,9 @@ interface FolderDao {
     @Query("UPDATE folders SET sortBy = :sortBy, sortAscending = :ascending WHERE `path` = :path")
     suspend fun updateSort(path: String, sortBy: String, ascending: Int)
 
+    @Query("UPDATE folders SET thumbnailOrientation = :orientation WHERE `path` = :path")
+    suspend fun updateThumbnailOrientation(path: String, orientation: Int)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(folders: List<FolderEntity>)
 
