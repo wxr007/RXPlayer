@@ -32,6 +32,9 @@ interface FolderDao {
     @Query("UPDATE folders SET autoFullscreen = :enabled WHERE `path` = :path")
     suspend fun updateAutoFullscreen(path: String, enabled: Int)
 
+    @Query("UPDATE folders SET playbackMode = :mode WHERE `path` = :path")
+    suspend fun updatePlaybackMode(path: String, mode: Int)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(folders: List<FolderEntity>)
 

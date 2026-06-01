@@ -39,6 +39,7 @@ class VideoRepository @Inject constructor(
         val modeMap = folderDao.getAllFoldersSnapshot().associate { it.path to it.displayMode }
         val orientationMap = folderDao.getAllFoldersSnapshot().associate { it.path to it.thumbnailOrientation }
         val autoFullscreenMap = folderDao.getAllFoldersSnapshot().associate { it.path to it.autoFullscreen }
+        val playbackModeMap = folderDao.getAllFoldersSnapshot().associate { it.path to it.playbackMode }
         val mediaStoreFolders = getVideoFolders()
         val safUris = getSavedSafUris()
         val safFolders = safUris.mapNotNull { scanSafFolder(it) }
@@ -52,6 +53,9 @@ class VideoRepository @Inject constructor(
         }
         autoFullscreenMap.forEach { (path, enabled) ->
             if (enabled != 0) folderDao.updateAutoFullscreen(path, enabled)
+        }
+        playbackModeMap.forEach { (path, mode) ->
+            if (mode != 0) folderDao.updatePlaybackMode(path, mode)
         }
     }
 
@@ -102,6 +106,14 @@ class VideoRepository @Inject constructor(
 
     suspend fun setAutoFullscreen(folderPath: String, enabled: Int) {
         folderDao.updateAutoFullscreen(folderPath, enabled)
+    }
+
+    suspend fun getPlaybackMode(folderPath: String): Int {
+        return folderDao.getByPath(folderPath)?.playbackMode ?: 0
+    }
+
+    suspend fun setPlaybackMode(folderPath: String, mode: Int) {
+        folderDao.updatePlaybackMode(folderPath, mode)
     }
 
     suspend fun scanSafFolderWithProgress(
@@ -361,7 +373,8 @@ private fun VideoFolder.toEntity() = com.rxplayer.app.data.db.FolderEntity(
     sortBy = sortBy,
     sortAscending = sortAscending,
     thumbnailOrientation = thumbnailOrientation,
-    autoFullscreen = autoFullscreen
+    autoFullscreen = autoFullscreen,
+    playbackMode = playbackMode
 )
 
 private fun com.rxplayer.app.data.db.FolderEntity.toModel() = VideoFolder(
@@ -375,5 +388,6 @@ private fun com.rxplayer.app.data.db.FolderEntity.toModel() = VideoFolder(
     sortBy = sortBy,
     sortAscending = sortAscending,
     thumbnailOrientation = thumbnailOrientation,
-    autoFullscreen = autoFullscreen
+    autoFullscreen = autoFullscreen,
+    playbackMode = playbackMode
 )

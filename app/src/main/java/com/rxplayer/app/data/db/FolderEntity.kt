@@ -15,5 +15,6 @@ data class FolderEntity(
     val sortBy: String = "date",
     val sortAscending: Int = 0,
     val thumbnailOrientation: Int = 0,
-    val autoFullscreen: Int = 0
+    val autoFullscreen: Int = 0,
+    val playbackMode: Int = 0
 )

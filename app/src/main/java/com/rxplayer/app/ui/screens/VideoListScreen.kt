@@ -60,7 +60,7 @@ import com.rxplayer.app.viewmodel.VideoListViewModel
 @Composable
 fun VideoListScreen(
     folderPath: String,
-    onVideoClick: (String, Boolean) -> Unit,
+    onVideoClick: (String, Boolean, Int) -> Unit,
     onBack: () -> Unit,
     viewModel: VideoListViewModel = hiltViewModel()
 ) {
@@ -77,6 +77,7 @@ fun VideoListScreen(
     val sortAscending by viewModel.sortAscending.collectAsState()
     val portrait by viewModel.thumbnailOrientation.collectAsState()
     val autoFullscreen by viewModel.autoFullscreen.collectAsState()
+    val playbackMode by viewModel.playbackMode.collectAsState()
     var showLayoutDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(folderPath) {
@@ -91,13 +92,15 @@ fun VideoListScreen(
             currentSortAscending = sortAscending,
             currentPortrait = portrait,
             currentAutoFullscreen = autoFullscreen,
+            currentPlaybackMode = playbackMode,
             onDismiss = { showLayoutDialog = false },
-            onApply = { columns, crop, newSortBy, ascending, isPortrait, isAutoFullscreen ->
+            onApply = { columns, crop, newSortBy, ascending, isPortrait, isAutoFullscreen, mode ->
                 viewModel.setGridColumns(columns)
                 viewModel.setDisplayMode(crop)
                 viewModel.setSort(newSortBy, ascending)
                 viewModel.setThumbnailOrientation(isPortrait)
                 viewModel.setAutoFullscreen(isAutoFullscreen)
+                viewModel.setPlaybackMode(mode)
                 showLayoutDialog = false
             }
         )
@@ -133,7 +136,7 @@ fun VideoListScreen(
                     video = video,
                     cropMode = cropMode,
                     portrait = portrait,
-                        onClick = { onVideoClick(video.filePath, autoFullscreen) }
+                        onClick = { onVideoClick(video.filePath, autoFullscreen, playbackMode) }
                 )
             }
         }
@@ -148,8 +151,9 @@ private fun LayoutSettingsDialog(
     currentSortAscending: Boolean,
     currentPortrait: Boolean,
     currentAutoFullscreen: Boolean,
+    currentPlaybackMode: Int,
     onDismiss: () -> Unit,
-    onApply: (columns: Int, crop: Boolean, sortBy: String, ascending: Boolean, portrait: Boolean, autoFullscreen: Boolean) -> Unit
+    onApply: (columns: Int, crop: Boolean, sortBy: String, ascending: Boolean, portrait: Boolean, autoFullscreen: Boolean, playbackMode: Int) -> Unit
 ) {
     var selectedColumns by remember { mutableStateOf(currentColumns) }
     var selectedCrop by remember { mutableStateOf(currentCropMode) }
@@ -157,6 +161,7 @@ private fun LayoutSettingsDialog(
     var selectedAscending by remember { mutableStateOf(currentSortAscending) }
     var selectedPortrait by remember { mutableStateOf(currentPortrait) }
     var selectedAutoFullscreen by remember { mutableStateOf(currentAutoFullscreen) }
+    var selectedPlaybackMode by remember { mutableStateOf(currentPlaybackMode) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -298,11 +303,31 @@ private fun LayoutSettingsDialog(
                         Text("开启", style = MaterialTheme.typography.bodySmall)
                     }
                 }
+
+                Text(
+                    "播放模式",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    listOf(0 to "单次", 1 to "单曲循环", 2 to "顺序", 3 to "列表循环").forEach { (value, label) ->
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            RadioButton(
+                                selected = selectedPlaybackMode == value,
+                                onClick = { selectedPlaybackMode = value }
+                            )
+                            Text(label, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
             TextButton(onClick = {
-                onApply(selectedColumns, selectedCrop, selectedSortBy, selectedAscending, selectedPortrait, selectedAutoFullscreen)
+                onApply(selectedColumns, selectedCrop, selectedSortBy, selectedAscending, selectedPortrait, selectedAutoFullscreen, selectedPlaybackMode)
             }) {
                 Text("确定")
             }

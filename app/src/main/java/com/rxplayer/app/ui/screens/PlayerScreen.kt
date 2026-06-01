@@ -5,7 +5,6 @@ import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.util.Log
 import android.view.WindowManager
-
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Fullscreen
@@ -59,16 +59,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.MediaItem
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
@@ -85,6 +86,8 @@ import kotlinx.coroutines.withTimeoutOrNull
 fun PlayerScreen(
     videoPath: String,
     autoFullscreen: Boolean = false,
+    playbackMode: Int = 0,
+    folderPath: String = "",
     onBack: () -> Unit,
     viewModel: PlayerViewModel = hiltViewModel()
 ) {
@@ -111,6 +114,23 @@ fun PlayerScreen(
         ExoPlayer.Builder(context).build().apply {
             setMediaItem(MediaItem.fromUri(Uri.parse(videoPath)))
             prepare()
+        }
+    }
+
+    val folderVideos by viewModel.folderVideos.collectAsState()
+
+    @OptIn(UnstableApi::class)
+    LaunchedEffect(folderVideos, playbackMode) {
+        if (playbackMode >= 2 && folderVideos.isNotEmpty()) {
+            val mediaItems = folderVideos.map { MediaItem.fromUri(Uri.parse(it.filePath)) }
+            val startIndex = folderVideos.indexOfFirst { it.filePath == videoPath }.coerceAtLeast(0)
+            player.setMediaItems(mediaItems, startIndex, 0)
+            player.prepare()
+        }
+        player.repeatMode = when (playbackMode) {
+            1 -> ExoPlayer.REPEAT_MODE_ONE
+            3 -> ExoPlayer.REPEAT_MODE_ALL
+            else -> ExoPlayer.REPEAT_MODE_OFF
         }
     }
 
