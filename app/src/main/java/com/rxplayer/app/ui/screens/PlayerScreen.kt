@@ -133,7 +133,7 @@ fun PlayerScreen(
             val list = snapshotFlow { folderVideos }.firstOrNull { it.isNotEmpty() } ?: return@LaunchedEffect
             val mediaItems = list.map { MediaItem.fromUri(Uri.parse(it.filePath)) }
             val startIndex = list.indexOfFirst { it.filePath == videoPath }.coerceAtLeast(0)
-            player.setMediaItems(mediaItems, startIndex, 0)
+            player.setMediaItems(mediaItems, startIndex, player.currentPosition)
         }
     }
 
