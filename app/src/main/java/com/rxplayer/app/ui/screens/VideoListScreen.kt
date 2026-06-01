@@ -504,7 +504,7 @@ private fun VideoPropertiesDialog(
                 PropertyRow("时长", formatDuration(video.duration))
                 PropertyRow("文件大小", formatFileSize(video.fileSize))
                 PropertyRow("类型", video.mimeType)
-                PropertyRow("路径", video.filePath)
+                PropertyRow("路径", simplifyPath(video.filePath))
             }
         },
         confirmButton = {
@@ -542,6 +542,15 @@ private fun formatFileSize(bytes: Long): String {
         bytes >= 1_000_000 -> "%.0f MB".format(bytes / 1_000_000f)
         bytes >= 1_000 -> "%.0f KB".format(bytes / 1_000f)
         else -> "$bytes B"
+    }
+}
+
+private fun simplifyPath(filePath: String): String {
+    val decoded = Uri.decode(filePath)
+    return if (decoded.startsWith("content://")) {
+        decoded.substringAfter("primary:")
+    } else {
+        decoded.removePrefix("/storage/emulated/0/")
     }
 }
 
