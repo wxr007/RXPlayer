@@ -10,7 +10,11 @@ sealed class Route(val route: String) {
         fun decodePath(encoded: String): String =
             String(Base64.decode(encoded, Base64.URL_SAFE))
     }
-    object Favorites : Route("favorites")
+    object Playlists : Route("playlists")
+    object PlaylistDetail : Route("playlist/{playlistId}/{playlistName}") {
+        fun createRoute(playlistId: Long, playlistName: String) =
+            "playlist/$playlistId/${Base64.encodeToString(playlistName.toByteArray(), Base64.URL_SAFE or Base64.NO_WRAP)}"
+    }
     object History : Route("history")
     object Settings : Route("settings")
     object Player : Route("player/{videoPath}?autoFullscreen={autoFullscreen}&playbackMode={playbackMode}&folderPath={folderPath}") {

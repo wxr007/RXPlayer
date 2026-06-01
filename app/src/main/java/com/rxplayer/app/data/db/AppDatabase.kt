@@ -10,9 +10,11 @@ import androidx.room.TypeConverters
         FavoriteEntity::class,
         ScenePointEntity::class,
         VideoEntity::class,
-        FolderEntity::class
+        FolderEntity::class,
+        PlaylistEntity::class,
+        PlaylistVideoEntity::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -20,4 +22,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun scenePointDao(): ScenePointDao
     abstract fun videoDao(): VideoDao
     abstract fun folderDao(): FolderDao
+    abstract fun playlistDao(): PlaylistDao
 }

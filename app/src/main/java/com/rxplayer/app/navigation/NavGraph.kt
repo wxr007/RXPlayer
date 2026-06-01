@@ -5,13 +5,13 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.PlaylistPlay
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -31,8 +31,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.rxplayer.app.ui.screens.FavoritesScreen
 import com.rxplayer.app.ui.screens.HistoryScreen
+import com.rxplayer.app.ui.screens.PlaylistDetailScreen
+import com.rxplayer.app.ui.screens.PlaylistsScreen
 import com.rxplayer.app.ui.screens.HomeScreen
 import com.rxplayer.app.ui.screens.PlayerScreen
 import com.rxplayer.app.ui.screens.SettingsScreen
@@ -47,7 +48,7 @@ data class BottomNavItem(
 
 val bottomNavItems = listOf(
     BottomNavItem("首页", Icons.Filled.Home, Icons.Outlined.Home, Route.FolderList.route),
-    BottomNavItem("收藏", Icons.Filled.Favorite, Icons.Outlined.FavoriteBorder, Route.Favorites.route),
+    BottomNavItem("播放列表", Icons.Filled.PlaylistPlay, Icons.Outlined.PlaylistPlay, Route.Playlists.route),
     BottomNavItem("历史", Icons.Filled.History, Icons.Outlined.History, Route.History.route),
     BottomNavItem("设置", Icons.Filled.Settings, Icons.Outlined.Settings, Route.Settings.route),
 )
@@ -123,11 +124,31 @@ fun RXPlayerNavHost() {
                     onBack = { navController.popBackStack() }
                 )
             }
-            composable(Route.Favorites.route) {
-                FavoritesScreen(
+            composable(Route.Playlists.route) {
+                PlaylistsScreen(
+                    onPlaylistClick = { id, name ->
+                        navController.navigate(Route.PlaylistDetail.createRoute(id, name))
+                    }
+                )
+            }
+            composable(
+                route = Route.PlaylistDetail.route,
+                arguments = listOf(
+                    navArgument("playlistId") { type = NavType.LongType },
+                    navArgument("playlistName") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val playlistId = backStackEntry.arguments?.getLong("playlistId") ?: 0L
+                val playlistName = backStackEntry.arguments?.getString("playlistName")?.let {
+                    String(android.util.Base64.decode(it, android.util.Base64.URL_SAFE))
+                } ?: ""
+                PlaylistDetailScreen(
+                    playlistId = playlistId,
+                    playlistName = playlistName,
                     onVideoClick = { videoPath ->
                         navController.navigate(Route.Player.createRoute(videoPath))
-                    }
+                    },
+                    onBack = { navController.popBackStack() }
                 )
             }
             composable(Route.History.route) {

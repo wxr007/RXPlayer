@@ -35,6 +35,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -86,7 +87,14 @@ fun VideoListScreen(
     val autoFullscreen by viewModel.autoFullscreen.collectAsState()
     val playbackMode by viewModel.playbackMode.collectAsState()
     val resolutionDisplay by viewModel.resolutionDisplay.collectAsState()
+    val playlists by viewModel.playlists.collectAsState()
     var showLayoutDialog by remember { mutableStateOf(false) }
+    var showAddToPlaylistDialog by remember { mutableStateOf(false) }
+    var selectedVideoForPlaylist by remember { mutableStateOf<Video?>(null) }
+
+    LaunchedEffect(Unit) {
+        viewModel.observePlaylists()
+    }
 
     LaunchedEffect(folderPath) {
         viewModel.loadVideos(folderPath)
@@ -110,6 +118,24 @@ fun VideoListScreen(
                 viewModel.setAutoFullscreen(isAutoFullscreen)
                 viewModel.setPlaybackMode(mode)
                 showLayoutDialog = false
+            }
+        )
+    }
+
+    if (showAddToPlaylistDialog && selectedVideoForPlaylist != null) {
+        AddToPlaylistDialog(
+            playlists = playlists,
+            onDismiss = {
+                showAddToPlaylistDialog = false
+                selectedVideoForPlaylist = null
+            },
+            onSelectPlaylist = { playlistId ->
+                viewModel.addVideoToPlaylist(playlistId, selectedVideoForPlaylist!!)
+                showAddToPlaylistDialog = false
+                selectedVideoForPlaylist = null
+            },
+            onCreateNew = { name ->
+                viewModel.createPlaylist(name)
             }
         )
     }
@@ -145,7 +171,11 @@ fun VideoListScreen(
                     cropMode = cropMode,
                     portrait = portrait,
                     resolutionDisplay = resolutionDisplay,
-                    onClick = { onVideoClick(video.filePath, autoFullscreen, playbackMode) }
+                    onClick = { onVideoClick(video.filePath, autoFullscreen, playbackMode) },
+                    onAddToPlaylistClick = {
+                        selectedVideoForPlaylist = video
+                        showAddToPlaylistDialog = true
+                    }
                 )
             }
         }
@@ -355,7 +385,8 @@ private fun VideoGridItem(
     cropMode: Boolean,
     portrait: Boolean,
     resolutionDisplay: String = "full",
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onAddToPlaylistClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     var thumbnail by remember(video.filePath) { mutableStateOf<Bitmap?>(null) }
@@ -458,6 +489,13 @@ private fun VideoGridItem(
                         onDismissRequest = { showMenu = false }
                     ) {
                         DropdownMenuItem(
+                            text = { Text("添加到播放列表") },
+                            onClick = {
+                                showMenu = false
+                                onAddToPlaylistClick()
+                            }
+                        )
+                        DropdownMenuItem(
                             text = { Text("属性") },
                             onClick = {
                                 showMenu = false
@@ -510,6 +548,80 @@ private fun VideoPropertiesDialog(
         confirmButton = {
             TextButton(onClick = onDismiss) {
                 Text("关闭")
+            }
+        }
+    )
+}
+
+@Composable
+private fun AddToPlaylistDialog(
+    playlists: List<com.rxplayer.app.data.db.PlaylistEntity>,
+    onDismiss: () -> Unit,
+    onSelectPlaylist: (Long) -> Unit,
+    onCreateNew: (String) -> Unit
+) {
+    var newName by remember { mutableStateOf("") }
+    var showCreateField by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("添加到播放列表") },
+        text = {
+            Column {
+                if (playlists.isEmpty() && !showCreateField) {
+                    Text("暂无播放列表，请创建一个")
+                }
+                playlists.forEach { playlist ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelectPlaylist(playlist.id) }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = playlist.name,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+                if (showCreateField) {
+                    OutlinedTextField(
+                        value = newName,
+                        onValueChange = { newName = it },
+                        label = { Text("新播放列表名称") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            if (showCreateField) {
+                TextButton(
+                    onClick = {
+                        if (newName.isNotBlank()) {
+                            onCreateNew(newName.trim())
+                            newName = ""
+                            showCreateField = false
+                        }
+                    },
+                    enabled = newName.isNotBlank()
+                ) {
+                    Text("创建")
+                }
+            } else {
+                TextButton(
+                    onClick = { showCreateField = true }
+                ) {
+                    Text("新建播放列表")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消")
             }
         }
     )

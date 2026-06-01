@@ -2,6 +2,9 @@ package com.rxplayer.app.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.rxplayer.app.data.db.PlaylistDao
+import com.rxplayer.app.data.db.PlaylistEntity
+import com.rxplayer.app.data.db.PlaylistVideoEntity
 import com.rxplayer.app.data.model.Video
 import com.rxplayer.app.data.repository.VideoRepository
 import com.rxplayer.app.data.settings.SettingsManager
@@ -17,7 +20,8 @@ import javax.inject.Inject
 @HiltViewModel
 class VideoListViewModel @Inject constructor(
     private val repository: VideoRepository,
-    private val settingsManager: SettingsManager
+    private val settingsManager: SettingsManager,
+    private val playlistDao: PlaylistDao
 ) : ViewModel() {
 
     private val _videos = MutableStateFlow<List<Video>>(emptyList())
@@ -45,6 +49,9 @@ class VideoListViewModel @Inject constructor(
     val playbackMode: StateFlow<Int> = _playbackMode
 
     val resolutionDisplay: StateFlow<String> = settingsManager.resolutionDisplay
+
+    private val _playlists = MutableStateFlow<List<PlaylistEntity>>(emptyList())
+    val playlists: StateFlow<List<PlaylistEntity>> = _playlists
 
     private var synced = false
     private var currentFolderPath = ""
@@ -200,6 +207,44 @@ class VideoListViewModel @Inject constructor(
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 repository.syncFolderFromMediaStore(folderPath)
+            }
+        }
+    }
+
+    fun observePlaylists() {
+        viewModelScope.launch {
+            playlistDao.getAllPlaylists()
+                .catch { emit(emptyList()) }
+                .collect { _playlists.value = it }
+        }
+    }
+
+    fun addVideoToPlaylist(playlistId: Long, video: Video) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                playlistDao.addVideoToPlaylist(
+                    PlaylistVideoEntity(
+                        playlistId = playlistId,
+                        filePath = video.filePath,
+                        videoName = video.fileName,
+                        duration = video.duration,
+                        resolution = video.resolution,
+                        addedAt = System.currentTimeMillis()
+                    )
+                )
+            }
+        }
+    }
+
+    fun createPlaylist(name: String) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                playlistDao.insertPlaylist(
+                    com.rxplayer.app.data.db.PlaylistEntity(
+                        name = name,
+                        createdAt = System.currentTimeMillis()
+                    )
+                )
             }
         }
     }

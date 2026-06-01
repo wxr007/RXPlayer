@@ -6,6 +6,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.rxplayer.app.data.db.AppDatabase
 import com.rxplayer.app.data.db.FolderDao
+import com.rxplayer.app.data.db.PlaylistDao
 import com.rxplayer.app.data.db.ScenePointDao
 import com.rxplayer.app.data.db.VideoDao
 import dagger.Module
@@ -26,7 +27,7 @@ object AppModule {
             context,
             AppDatabase::class.java,
             "rxplayer.db"
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
             .build()
     }
 
@@ -43,6 +44,34 @@ object AppModule {
     @Provides
     fun provideFolderDao(database: AppDatabase): FolderDao {
         return database.folderDao()
+    }
+
+    @Provides
+    fun providePlaylistDao(database: AppDatabase): PlaylistDao {
+        return database.playlistDao()
+    }
+
+    private val MIGRATION_9_10 = object : Migration(9, 10) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS `playlists` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `name` TEXT NOT NULL,
+                    `createdAt` INTEGER NOT NULL
+                )
+            """.trimIndent())
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS `playlist_videos` (
+                    `playlistId` INTEGER NOT NULL,
+                    `filePath` TEXT NOT NULL,
+                    `videoName` TEXT NOT NULL,
+                    `duration` INTEGER NOT NULL DEFAULT 0,
+                    `resolution` TEXT NOT NULL DEFAULT '',
+                    `addedAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`playlistId`, `filePath`)
+                )
+            """.trimIndent())
+        }
     }
 
     private val MIGRATION_8_9 = object : Migration(8, 9) {
