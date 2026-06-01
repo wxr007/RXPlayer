@@ -12,6 +12,9 @@ interface VideoDao {
     @Query("SELECT * FROM videos WHERE folderPath = :folderPath ORDER BY fileName ASC")
     fun getVideosInFolder(folderPath: String): Flow<List<VideoEntity>>
 
+    @Query("SELECT * FROM videos WHERE folderPath = :folderPath")
+    suspend fun getVideosInFolderSnapshot(folderPath: String): List<VideoEntity>
+
     @Query("SELECT COUNT(*) FROM videos WHERE folderPath = :folderPath")
     suspend fun countInFolder(folderPath: String): Int
 

@@ -14,7 +14,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -79,22 +78,26 @@ class PlayerViewModel @Inject constructor(
 
     private fun loadFolderVideos() {
         viewModelScope.launch {
-            withContext(Dispatchers.IO) {
-                repository.syncFolderFromMediaStore(folderPath)
+            try {
+                withContext(Dispatchers.IO) {
+                    repository.syncFolderFromMediaStore(folderPath)
+                }
+                val (sortBy, sortAscending) = withContext(Dispatchers.IO) {
+                    repository.getSortSettings(folderPath)
+                }
+                val snapshot = withContext(Dispatchers.IO) {
+                    repository.getVideosInFolderSnapshot(folderPath)
+                }
+                val sorted = when (sortBy) {
+                    "date" -> snapshot.sortedBy { it.addedAt }
+                    "duration" -> snapshot.sortedBy { it.duration }
+                    "size" -> snapshot.sortedBy { it.fileSize }
+                    else -> snapshot.sortedBy { it.fileName.lowercase() }
+                }
+                _folderVideos.value = if (sortAscending == 1) sorted else sorted.reversed()
+            } catch (e: Exception) {
+                Log.e("RXPlayer", "Failed to load folder videos", e)
             }
-            val (sortBy, sortAscending) = withContext(Dispatchers.IO) {
-                repository.getSortSettings(folderPath)
-            }
-            val snapshot = withContext(Dispatchers.IO) {
-                repository.observeVideosInFolder(folderPath).first()
-            }
-            val sorted = when (sortBy) {
-                "date" -> snapshot.sortedBy { it.addedAt }
-                "duration" -> snapshot.sortedBy { it.duration }
-                "size" -> snapshot.sortedBy { it.fileSize }
-                else -> snapshot.sortedBy { it.fileName.lowercase() }
-            }
-            _folderVideos.value = if (sortAscending == 1) sorted else sorted.reversed()
         }
     }
 

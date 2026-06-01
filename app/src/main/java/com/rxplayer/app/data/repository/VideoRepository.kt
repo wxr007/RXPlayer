@@ -209,6 +209,10 @@ class VideoRepository @Inject constructor(
         }
     }
 
+    suspend fun getVideosInFolderSnapshot(folderPath: String): List<Video> {
+        return videoDao.getVideosInFolderSnapshot(folderPath).map { it.toModel() }
+    }
+
     suspend fun syncFolderFromMediaStore(folderPath: String) {
         val videos = if (folderPath.startsWith("content://")) {
             querySafFolder(folderPath)
