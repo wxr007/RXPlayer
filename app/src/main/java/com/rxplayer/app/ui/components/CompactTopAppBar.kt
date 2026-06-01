@@ -54,7 +54,7 @@ fun CompactTopAppBar(
             LaunchedEffect(title) {
                 delay(1500)
                 if (scrollState.maxValue > 0) {
-                    val scrollDuration = (scrollState.maxValue / 2).coerceAtLeast(2000)
+                    val scrollDuration = (scrollState.maxValue * 8).coerceIn(3000, 15000)
                     while (true) {
                         scrollState.animateScrollTo(
                             scrollState.maxValue,
