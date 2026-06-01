@@ -191,6 +191,7 @@ internal fun LayoutSettingsDialog(
     currentPortrait: Boolean,
     currentAutoFullscreen: Boolean,
     currentPlaybackMode: Int,
+    title: String = "文件夹设置",
     onDismiss: () -> Unit,
     onApply: (columns: Int, crop: Boolean, sortBy: String, ascending: Boolean, portrait: Boolean, autoFullscreen: Boolean, playbackMode: Int) -> Unit
 ) {
@@ -205,7 +206,7 @@ internal fun LayoutSettingsDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text("文件夹设置", style = MaterialTheme.typography.titleMedium)
+            Text(title, style = MaterialTheme.typography.titleMedium)
         },
         text = {
             Column {

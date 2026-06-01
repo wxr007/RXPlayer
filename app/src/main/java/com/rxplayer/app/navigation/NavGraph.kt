@@ -145,8 +145,8 @@ fun RXPlayerNavHost() {
                 PlaylistDetailScreen(
                     playlistId = playlistId,
                     playlistName = playlistName,
-                    onVideoClick = { videoPath ->
-                        navController.navigate(Route.Player.createRoute(videoPath))
+                    onVideoClick = { videoPath, autoFullscreen, playbackMode ->
+                        navController.navigate(Route.Player.createRoute(videoPath, if (autoFullscreen) 1 else 0, playbackMode))
                     },
                     onBack = { navController.popBackStack() }
                 )

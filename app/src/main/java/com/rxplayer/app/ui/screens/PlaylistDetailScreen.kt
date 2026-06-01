@@ -40,7 +40,7 @@ import com.rxplayer.app.viewmodel.PlaylistViewModel
 fun PlaylistDetailScreen(
     playlistId: Long,
     playlistName: String,
-    onVideoClick: (String) -> Unit,
+    onVideoClick: (videoPath: String, autoFullscreen: Boolean, playbackMode: Int) -> Unit,
     onBack: () -> Unit,
     viewModel: PlaylistViewModel = hiltViewModel()
 ) {
@@ -83,6 +83,7 @@ fun PlaylistDetailScreen(
 
     if (showLayoutDialog) {
         LayoutSettingsDialog(
+            title = "播放列表设置",
             currentColumns = gridColumns,
             currentCropMode = cropMode,
             currentSortBy = sortBy,
@@ -148,7 +149,7 @@ fun PlaylistDetailScreen(
                         cropMode = cropMode,
                         portrait = portrait,
                         resolutionDisplay = resolutionDisplay,
-                        onClick = { onVideoClick(video.filePath) },
+                        onClick = { onVideoClick(video.filePath, autoFullscreen, playbackMode) },
                         onRemoveFromPlaylistClick = { removeTarget = video }
                     )
                 }
