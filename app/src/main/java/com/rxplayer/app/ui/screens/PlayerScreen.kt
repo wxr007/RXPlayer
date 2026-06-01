@@ -120,7 +120,8 @@ fun PlayerScreen(
     @OptIn(UnstableApi::class)
     LaunchedEffect(folderVideos, playbackMode) {
         if (playerReady) return@LaunchedEffect
-        if (playbackMode >= 2 && folderVideos.isNotEmpty()) {
+        if (playbackMode >= 2) {
+            if (folderVideos.isEmpty()) return@LaunchedEffect
             val mediaItems = folderVideos.map { MediaItem.fromUri(Uri.parse(it.filePath)) }
             val startIndex = folderVideos.indexOfFirst { it.filePath == videoPath }.coerceAtLeast(0)
             player.setMediaItems(mediaItems, startIndex, 0)
