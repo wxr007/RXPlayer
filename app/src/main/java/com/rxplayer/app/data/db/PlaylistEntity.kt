@@ -7,7 +7,15 @@ import androidx.room.PrimaryKey
 data class PlaylistEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
-    val createdAt: Long
+    val createdAt: Long,
+    val displayMode: Int = 1,
+    val gridColumns: Int = 3,
+    val sortBy: String = "date",
+    val sortAscending: Int = 0,
+    val thumbnailOrientation: Int = 0,
+    val autoFullscreen: Int = 0,
+    val playbackMode: Int = 0,
+    val coverPaths: String = ""
 )
 
 @Entity(
@@ -17,8 +25,5 @@ data class PlaylistEntity(
 data class PlaylistVideoEntity(
     val playlistId: Long,
     val filePath: String,
-    val videoName: String,
-    val duration: Long,
-    val resolution: String,
     val addedAt: Long
 )

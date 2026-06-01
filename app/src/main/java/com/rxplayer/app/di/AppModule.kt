@@ -27,7 +27,7 @@ object AppModule {
             context,
             AppDatabase::class.java,
             "rxplayer.db"
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
             .build()
     }
 
@@ -49,6 +49,30 @@ object AppModule {
     @Provides
     fun providePlaylistDao(database: AppDatabase): PlaylistDao {
         return database.playlistDao()
+    }
+
+    private val MIGRATION_10_11 = object : Migration(10, 11) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS `playlist_videos_new` (
+                    `playlistId` INTEGER NOT NULL,
+                    `filePath` TEXT NOT NULL,
+                    `addedAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`playlistId`, `filePath`)
+                )
+            """.trimIndent())
+            db.execSQL("INSERT INTO `playlist_videos_new` (`playlistId`, `filePath`, `addedAt`) SELECT `playlistId`, `filePath`, `addedAt` FROM `playlist_videos`")
+            db.execSQL("DROP TABLE `playlist_videos`")
+            db.execSQL("ALTER TABLE `playlist_videos_new` RENAME TO `playlist_videos`")
+            db.execSQL("ALTER TABLE `playlists` ADD COLUMN `displayMode` INTEGER NOT NULL DEFAULT 1")
+            db.execSQL("ALTER TABLE `playlists` ADD COLUMN `gridColumns` INTEGER NOT NULL DEFAULT 3")
+            db.execSQL("ALTER TABLE `playlists` ADD COLUMN `sortBy` TEXT NOT NULL DEFAULT 'date'")
+            db.execSQL("ALTER TABLE `playlists` ADD COLUMN `sortAscending` INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE `playlists` ADD COLUMN `thumbnailOrientation` INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE `playlists` ADD COLUMN `autoFullscreen` INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE `playlists` ADD COLUMN `playbackMode` INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE `playlists` ADD COLUMN `coverPaths` TEXT NOT NULL DEFAULT ''")
+        }
     }
 
     private val MIGRATION_9_10 = object : Migration(9, 10) {

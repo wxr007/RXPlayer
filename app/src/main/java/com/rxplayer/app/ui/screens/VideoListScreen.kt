@@ -183,7 +183,7 @@ fun VideoListScreen(
 }
 
 @Composable
-private fun LayoutSettingsDialog(
+internal fun LayoutSettingsDialog(
     currentColumns: Int,
     currentCropMode: Boolean,
     currentSortBy: String,

@@ -3,31 +3,17 @@ package com.rxplayer.app.ui.screens
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,7 +21,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,21 +28,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
+import com.rxplayer.app.data.model.MediaCollection
 import com.rxplayer.app.data.model.VideoFolder
+import com.rxplayer.app.ui.components.CollectionCard
 import com.rxplayer.app.ui.components.CompactTopAppBar
 import com.rxplayer.app.viewmodel.HomeViewModel
-import java.io.File
 
 @Composable
 fun HomeScreen(
@@ -133,190 +111,14 @@ fun HomeScreen(
                     .padding(innerPadding)
             ) {
                 items(folders, key = { it.path }) { folder ->
-                    FolderCard(
-                        folder = folder,
+                    CollectionCard(
+                        collection = MediaCollection.Folder(folder),
                         progress = scanProgress[folder.path],
                         onClick = { onFolderClick(folder.path) },
                         onLongClick = { deleteTarget = folder }
                     )
                 }
             }
-        }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun FolderCard(
-    folder: VideoFolder,
-    progress: Float?,
-    onClick: () -> Unit,
-    onLongClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
-            ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-                    .clip(MaterialTheme.shapes.medium)
-            ) {
-                if (folder.coverPaths.isNotEmpty() && progress == null) {
-                    ThumbnailGrid(paths = folder.coverPaths)
-                } else if (progress != null) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator(
-                                progress = { progress },
-                                modifier = Modifier.size(48.dp),
-                                strokeWidth = 4.dp
-                            )
-                            Text(
-                                text = "${(progress * 100).toInt()}%",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 8.dp)
-                            )
-                        }
-                    }
-                } else {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Folder,
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize(0.4f),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                        )
-                    }
-                }
-
-                if (progress == null) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(4.dp)
-                            .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(2.dp))
-                            .padding(horizontal = 4.dp, vertical = 1.dp)
-                    ) {
-                        Text(
-                            text = "${folder.videoCount} 个视频",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.White,
-                            fontSize = 10.sp
-                        )
-                    }
-                }
-            }
-
-            Text(
-                text = folder.name,
-                style = MaterialTheme.typography.titleSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 6.dp)
-            )
-            Text(
-                text = formatFolderPath(folder.path),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 8.dp)
-            )
-        }
-    }
-}
-
-private fun formatFolderPath(path: String): String {
-    if (path.startsWith("content://")) {
-        val lastSegment = Uri.parse(path).lastPathSegment ?: return path
-        val decoded = lastSegment.substringAfter(":")
-        return Uri.decode(decoded)
-    }
-    return path
-}
-
-@Composable
-private fun ThumbnailGrid(paths: List<String>) {
-    val context = LocalContext.current
-    val p0 = paths.getOrNull(0)
-    val p1 = paths.getOrNull(1)
-    val p2 = paths.getOrNull(2)
-    val p3 = paths.getOrNull(3)
-
-    Column(modifier = Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-        ) {
-            ThumbnailCell(path = p0, modifier = Modifier.weight(1f))
-            ThumbnailCell(path = p1, modifier = Modifier.weight(1f))
-        }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-        ) {
-            ThumbnailCell(path = p2, modifier = Modifier.weight(1f))
-            ThumbnailCell(path = p3, modifier = Modifier.weight(1f))
-        }
-    }
-}
-
-@Composable
-private fun ThumbnailCell(path: String?, modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    if (path != null) {
-        val file = remember(path) { File(path) }
-        if (file.exists()) {
-            AsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(file)
-                    .crossfade(true)
-                    .build(),
-                contentDescription = null,
-                modifier = modifier.fillMaxHeight(),
-                contentScale = ContentScale.Crop
-            )
-        } else {
-            Box(
-                modifier = modifier.fillMaxHeight(),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Folder,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(0.5f),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                )
-            }
-        }
-    } else {
-        Box(
-            modifier = modifier.fillMaxHeight(),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Folder,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(0.5f),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-            )
         }
     }
 }

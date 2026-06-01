@@ -1,26 +1,17 @@
 package com.rxplayer.app.ui.screens
 
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,19 +28,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rxplayer.app.data.db.PlaylistWithCount
+import com.rxplayer.app.data.model.MediaCollection
+import com.rxplayer.app.ui.components.CollectionCard
 import com.rxplayer.app.ui.components.CompactTopAppBar
 import com.rxplayer.app.viewmodel.PlaylistViewModel
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -129,84 +115,20 @@ fun PlaylistsScreen(
                     .padding(innerPadding)
             ) {
                 items(playlists, key = { it.id }) { playlist ->
-                    PlaylistCard(
+                    val collection = MediaCollection.Playlist(
+                        playlistId = playlist.id,
                         name = playlist.name,
                         videoCount = playlist.videoCount,
-                        createdAt = playlist.createdAt,
+                        coverPaths = playlist.coverPaths.split("\n").filter { it.isNotEmpty() },
+                        createdAt = playlist.createdAt
+                    )
+                    CollectionCard(
+                        collection = collection,
                         onClick = { onPlaylistClick(playlist.id, playlist.name) },
                         onLongClick = { deleteTarget = playlist }
                     )
                 }
             }
-        }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun PlaylistCard(
-    name: String,
-    videoCount: Int,
-    createdAt: Long,
-    onClick: () -> Unit,
-    onLongClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
-            ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.PlaylistPlay,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(0.4f),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                )
-
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(4.dp)
-                        .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(2.dp))
-                        .padding(horizontal = 4.dp, vertical = 1.dp)
-                ) {
-                    Text(
-                        text = "$videoCount 个视频",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White,
-                        fontSize = 10.sp
-                    )
-                }
-            }
-
-            Text(
-                text = name,
-                style = MaterialTheme.typography.titleSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 6.dp)
-            )
-            Text(
-                text = formatPlaylistDate(createdAt),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 8.dp)
-            )
         }
     }
 }
@@ -244,9 +166,4 @@ private fun CreatePlaylistDialog(
             }
         }
     )
-}
-
-private fun formatPlaylistDate(timestamp: Long): String {
-    val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-    return sdf.format(Date(timestamp))
 }

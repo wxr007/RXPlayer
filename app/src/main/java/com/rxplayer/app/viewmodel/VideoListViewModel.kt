@@ -226,12 +226,15 @@ class VideoListViewModel @Inject constructor(
                     PlaylistVideoEntity(
                         playlistId = playlistId,
                         filePath = video.filePath,
-                        videoName = video.fileName,
-                        duration = video.duration,
-                        resolution = video.resolution,
                         addedAt = System.currentTimeMillis()
                     )
                 )
+                val paths = playlistDao.getCoverPaths(playlistId)
+                val list = paths.split("\n").filter { it.isNotEmpty() }
+                if (list.size < 4 && !list.contains(video.filePath)) {
+                    val updated = (list + video.filePath).joinToString("\n")
+                    playlistDao.updateCoverPaths(playlistId, updated)
+                }
             }
         }
     }
