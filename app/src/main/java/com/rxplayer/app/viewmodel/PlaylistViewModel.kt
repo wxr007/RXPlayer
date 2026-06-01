@@ -7,6 +7,7 @@ import com.rxplayer.app.data.db.PlaylistEntity
 import com.rxplayer.app.data.db.PlaylistVideoEntity
 import com.rxplayer.app.data.db.PlaylistVideoJoined
 import com.rxplayer.app.data.db.PlaylistWithCount
+import com.rxplayer.app.data.db.toVideo
 import com.rxplayer.app.data.model.Video
 import com.rxplayer.app.data.settings.SettingsManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -247,13 +248,4 @@ class PlaylistViewModel @Inject constructor(
     }
 }
 
-private fun PlaylistVideoJoined.toVideo() = Video(
-    filePath = filePath,
-    folderPath = "",
-    fileName = fileName,
-    duration = duration,
-    fileSize = fileSize,
-    resolution = resolution,
-    mimeType = mimeType,
-    addedAt = addedAt
-)
+

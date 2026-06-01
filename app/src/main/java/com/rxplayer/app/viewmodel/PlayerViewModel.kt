@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import android.util.Base64
 import android.util.Log
+import com.rxplayer.app.data.db.PlaylistDao
+import com.rxplayer.app.data.db.toVideo
 import com.rxplayer.app.data.model.Video
 import com.rxplayer.app.data.repository.VideoRepository
 import com.rxplayer.app.data.settings.SettingsManager
@@ -23,11 +25,13 @@ class PlayerViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val sceneAnalyzer: SceneAnalyzer,
     private val settingsManager: SettingsManager,
-    private val repository: VideoRepository
+    private val repository: VideoRepository,
+    private val playlistDao: PlaylistDao
 ) : ViewModel() {
 
     private val videoPath: String = decodeVideoPath(savedStateHandle.get<String>("videoPath") ?: "")
     private val folderPath: String = decodeFolderPath(savedStateHandle.get<String>("folderPath") ?: "")
+    private val playlistId: Long = savedStateHandle.get<Long>("playlistId") ?: 0L
 
     private fun decodeVideoPath(encoded: String): String {
         return try {
@@ -67,6 +71,8 @@ class PlayerViewModel @Inject constructor(
         }
         if (folderPath.isNotEmpty()) {
             loadFolderVideos()
+        } else if (playlistId > 0) {
+            loadPlaylistVideos()
         }
     }
 
@@ -95,6 +101,19 @@ class PlayerViewModel @Inject constructor(
                 _folderVideos.value = if (sortAscending == 1) sorted else sorted.reversed()
             } catch (e: Exception) {
                 Log.e("RXPlayer", "Failed to load folder videos", e)
+            }
+        }
+    }
+
+    private fun loadPlaylistVideos() {
+        viewModelScope.launch {
+            try {
+                val joined = withContext(Dispatchers.IO) {
+                    playlistDao.getVideosInPlaylistSnapshot(playlistId)
+                }
+                _folderVideos.value = joined.map { it.toVideo() }
+            } catch (e: Exception) {
+                Log.e("RXPlayer", "Failed to load playlist videos", e)
             }
         }
     }

@@ -14,6 +14,17 @@ data class PlaylistWithCount(
     val coverPaths: String
 )
 
+internal fun PlaylistVideoJoined.toVideo() = com.rxplayer.app.data.model.Video(
+    filePath = filePath,
+    folderPath = "",
+    fileName = fileName,
+    duration = duration,
+    fileSize = fileSize,
+    resolution = resolution,
+    mimeType = mimeType,
+    addedAt = addedAt
+)
+
 data class PlaylistVideoJoined(
     val filePath: String,
     val addedAt: Long,
@@ -96,4 +107,19 @@ interface PlaylistDao {
 
     @Query("SELECT filePath FROM playlist_videos WHERE playlistId = :playlistId ORDER BY addedAt ASC LIMIT 4")
     suspend fun getFirstVideoPaths(playlistId: Long): List<String>
+
+    @Query("""
+        SELECT pv.filePath, pv.addedAt,
+        COALESCE(MIN(v.fileName), '') AS fileName,
+        COALESCE(MIN(v.duration), 0) AS duration,
+        COALESCE(MIN(v.fileSize), 0) AS fileSize,
+        COALESCE(MIN(v.resolution), '') AS resolution,
+        COALESCE(MIN(v.mimeType), '') AS mimeType
+        FROM playlist_videos pv
+        LEFT JOIN videos v ON pv.filePath = v.filePath
+        WHERE pv.playlistId = :playlistId
+        GROUP BY pv.filePath
+        ORDER BY pv.addedAt ASC
+    """)
+    suspend fun getVideosInPlaylistSnapshot(playlistId: Long): List<PlaylistVideoJoined>
 }

@@ -89,6 +89,7 @@ fun PlayerScreen(
     autoFullscreen: Boolean = false,
     playbackMode: Int = 0,
     folderPath: String = "",
+    playlistId: Long = 0,
     onBack: () -> Unit,
     viewModel: PlayerViewModel = hiltViewModel()
 ) {

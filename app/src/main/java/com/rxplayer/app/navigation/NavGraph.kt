@@ -146,7 +146,7 @@ fun RXPlayerNavHost() {
                     playlistId = playlistId,
                     playlistName = playlistName,
                     onVideoClick = { videoPath, autoFullscreen, playbackMode ->
-                        navController.navigate(Route.Player.createRoute(videoPath, if (autoFullscreen) 1 else 0, playbackMode))
+                        navController.navigate(Route.Player.createRoute(videoPath, if (autoFullscreen) 1 else 0, playbackMode, playlistId = playlistId))
                     },
                     onBack = { navController.popBackStack() }
                 )
@@ -167,18 +167,21 @@ fun RXPlayerNavHost() {
                     navArgument("videoPath") { type = NavType.StringType },
                     navArgument("autoFullscreen") { type = NavType.IntType; defaultValue = 0 },
                     navArgument("playbackMode") { type = NavType.IntType; defaultValue = 0 },
-                    navArgument("folderPath") { type = NavType.StringType; defaultValue = "" }
+                    navArgument("folderPath") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("playlistId") { type = NavType.LongType; defaultValue = 0L }
                 )
             ) { backStackEntry ->
                 val videoPath = Route.Player.decodePath(backStackEntry.arguments?.getString("videoPath") ?: "")
                 val autoFullscreen = backStackEntry.arguments?.getInt("autoFullscreen") ?: 0
                 val playbackMode = backStackEntry.arguments?.getInt("playbackMode") ?: 0
                 val folderPath = Route.Player.decodeFolderPath(backStackEntry.arguments?.getString("folderPath") ?: "")
+                val playlistId = backStackEntry.arguments?.getLong("playlistId") ?: 0L
                 PlayerScreen(
                     videoPath = videoPath,
                     autoFullscreen = autoFullscreen == 1,
                     playbackMode = playbackMode,
                     folderPath = folderPath,
+                    playlistId = playlistId,
                     onBack = { navController.popBackStack() }
                 )
             }
