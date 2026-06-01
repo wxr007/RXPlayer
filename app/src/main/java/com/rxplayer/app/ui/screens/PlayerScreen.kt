@@ -118,14 +118,17 @@ fun PlayerScreen(
     }
 
     val folderVideos by viewModel.folderVideos.collectAsState()
+    var playlistSetup by remember { mutableStateOf(false) }
 
     @OptIn(UnstableApi::class)
     LaunchedEffect(folderVideos, playbackMode) {
+        if (playlistSetup) return@LaunchedEffect
         if (playbackMode >= 2 && folderVideos.isNotEmpty()) {
             val mediaItems = folderVideos.map { MediaItem.fromUri(Uri.parse(it.filePath)) }
             val startIndex = folderVideos.indexOfFirst { it.filePath == videoPath }.coerceAtLeast(0)
-            player.setMediaItems(mediaItems, startIndex, 0)
+            player.setMediaItems(mediaItems, startIndex, player.currentPosition)
             player.prepare()
+            playlistSetup = true
         }
         player.repeatMode = when (playbackMode) {
             1 -> ExoPlayer.REPEAT_MODE_ONE

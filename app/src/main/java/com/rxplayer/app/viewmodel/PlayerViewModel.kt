@@ -14,6 +14,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -84,15 +85,16 @@ class PlayerViewModel @Inject constructor(
             val (sortBy, sortAscending) = withContext(Dispatchers.IO) {
                 repository.getSortSettings(folderPath)
             }
-            repository.observeVideosInFolder(folderPath).collect { list ->
-                val sorted = when (sortBy) {
-                    "date" -> list.sortedBy { it.addedAt }
-                    "duration" -> list.sortedBy { it.duration }
-                    "size" -> list.sortedBy { it.fileSize }
-                    else -> list.sortedBy { it.fileName.lowercase() }
-                }
-                _folderVideos.value = if (sortAscending == 1) sorted else sorted.reversed()
+            val snapshot = withContext(Dispatchers.IO) {
+                repository.observeVideosInFolder(folderPath).first()
             }
+            val sorted = when (sortBy) {
+                "date" -> snapshot.sortedBy { it.addedAt }
+                "duration" -> snapshot.sortedBy { it.duration }
+                "size" -> snapshot.sortedBy { it.fileSize }
+                else -> snapshot.sortedBy { it.fileName.lowercase() }
+            }
+            _folderVideos.value = if (sortAscending == 1) sorted else sorted.reversed()
         }
     }
 
