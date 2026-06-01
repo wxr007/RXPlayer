@@ -62,7 +62,6 @@ class PlayerViewModel @Inject constructor(
     }
 
     init {
-        Log.d("RXPlayer", "PlayerViewModel init, videoPath=$videoPath")
         if (videoPath.isNotEmpty()) {
             observeScenes()
         }
@@ -72,7 +71,6 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun triggerAnalysis() {
-        Log.d("RXPlayer", "PlayerViewModel.triggerAnalysis called, videoPath=$videoPath")
         sceneAnalyzer.analyzeVideo(videoPath, force = true)
     }
 

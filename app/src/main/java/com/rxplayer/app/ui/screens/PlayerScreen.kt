@@ -3,7 +3,6 @@ package com.rxplayer.app.ui.screens
 import android.app.Activity
 import android.content.pm.ActivityInfo
 import android.net.Uri
-import android.util.Log
 import android.view.WindowManager
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -70,7 +69,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.MediaItem
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
@@ -119,22 +117,24 @@ fun PlayerScreen(
 
     val folderVideos by viewModel.folderVideos.collectAsState()
 
-    @OptIn(UnstableApi::class)
-    LaunchedEffect(playbackMode) {
-        if (playbackMode >= 2) {
-            val list = snapshotFlow { folderVideos }.firstOrNull { it.isNotEmpty() } ?: return@LaunchedEffect
-            val mediaItems = list.map { MediaItem.fromUri(Uri.parse(it.filePath)) }
-            val startIndex = list.indexOfFirst { it.filePath == videoPath }.coerceAtLeast(0)
-            player.setMediaItems(mediaItems, startIndex, 0)
-        } else {
-            player.setMediaItem(MediaItem.fromUri(Uri.parse(videoPath)))
-        }
+    LaunchedEffect(Unit) {
+        // Immediately prepare single video so user sees content right away
+        player.setMediaItem(MediaItem.fromUri(Uri.parse(videoPath)))
         player.repeatMode = when (playbackMode) {
             1 -> ExoPlayer.REPEAT_MODE_ONE
             3 -> ExoPlayer.REPEAT_MODE_ALL
             else -> ExoPlayer.REPEAT_MODE_OFF
         }
         player.prepare()
+
+        // For playlist modes (sequential/list loop), replace with folder playlist
+        // once folder videos are loaded. No extra prepare() — no flicker.
+        if (playbackMode >= 2) {
+            val list = snapshotFlow { folderVideos }.firstOrNull { it.isNotEmpty() } ?: return@LaunchedEffect
+            val mediaItems = list.map { MediaItem.fromUri(Uri.parse(it.filePath)) }
+            val startIndex = list.indexOfFirst { it.filePath == videoPath }.coerceAtLeast(0)
+            player.setMediaItems(mediaItems, startIndex, 0)
+        }
     }
 
     val toggleFullScreen: () -> Unit = {
@@ -244,10 +244,7 @@ fun PlayerScreen(
                     onBack = onBack,
                     actions = {
                         IconButton(
-                            onClick = {
-                                Log.d("RXPlayer", "TopBar analyze clicked")
-                                viewModel.triggerAnalysis()
-                            },
+                            onClick = { viewModel.triggerAnalysis() },
                             enabled = !isAnalyzing
                         ) {
                             Icon(
@@ -593,10 +590,7 @@ fun PlayerScreen(
                         horizontalArrangement = Arrangement.Center
                     ) {
                         IconButton(
-                            onClick = {
-                                Log.d("RXPlayer", "Analyze button clicked")
-                                viewModel.triggerAnalysis()
-                            },
+                            onClick = { viewModel.triggerAnalysis() },
                             enabled = !isAnalyzing
                         ) {
                             Icon(
@@ -611,7 +605,6 @@ fun PlayerScreen(
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier
                                 .clickable(enabled = !isAnalyzing) {
-                                    Log.d("RXPlayer", "Analyze text clicked")
                                     viewModel.triggerAnalysis()
                                 }
                                 .align(Alignment.CenterVertically)
