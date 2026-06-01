@@ -78,15 +78,20 @@ class PlayerViewModel @Inject constructor(
 
     private fun loadFolderVideos() {
         viewModelScope.launch {
-            val videos = withContext(Dispatchers.IO) {
-                repository.syncFolderFromMediaStore(folderPath)
-                repository.observeVideosInFolder(folderPath)
-            }
             withContext(Dispatchers.IO) {
                 repository.syncFolderFromMediaStore(folderPath)
             }
+            val (sortBy, sortAscending) = withContext(Dispatchers.IO) {
+                repository.getSortSettings(folderPath)
+            }
             repository.observeVideosInFolder(folderPath).collect { list ->
-                _folderVideos.value = list
+                val sorted = when (sortBy) {
+                    "date" -> list.sortedBy { it.addedAt }
+                    "duration" -> list.sortedBy { it.duration }
+                    "size" -> list.sortedBy { it.fileSize }
+                    else -> list.sortedBy { it.fileName.lowercase() }
+                }
+                _folderVideos.value = if (sortAscending == 1) sorted else sorted.reversed()
             }
         }
     }
