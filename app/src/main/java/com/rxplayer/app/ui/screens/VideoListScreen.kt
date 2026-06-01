@@ -380,13 +380,14 @@ private fun LayoutSettingsDialog(
 }
 
 @Composable
-private fun VideoGridItem(
+internal fun VideoGridItem(
     video: Video,
     cropMode: Boolean,
     portrait: Boolean,
     resolutionDisplay: String = "full",
     onClick: () -> Unit,
-    onAddToPlaylistClick: () -> Unit = {}
+    onAddToPlaylistClick: (() -> Unit)? = null,
+    onRemoveFromPlaylistClick: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     var thumbnail by remember(video.filePath) { mutableStateOf<Bitmap?>(null) }
@@ -488,13 +489,24 @@ private fun VideoGridItem(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false }
                     ) {
-                        DropdownMenuItem(
-                            text = { Text("添加到播放列表") },
-                            onClick = {
-                                showMenu = false
-                                onAddToPlaylistClick()
-                            }
-                        )
+                        if (onAddToPlaylistClick != null) {
+                            DropdownMenuItem(
+                                text = { Text("添加到播放列表") },
+                                onClick = {
+                                    showMenu = false
+                                    onAddToPlaylistClick()
+                                }
+                            )
+                        }
+                        if (onRemoveFromPlaylistClick != null) {
+                            DropdownMenuItem(
+                                text = { Text("从播放列表移除") },
+                                onClick = {
+                                    showMenu = false
+                                    onRemoveFromPlaylistClick()
+                                }
+                            )
+                        }
                         DropdownMenuItem(
                             text = { Text("属性") },
                             onClick = {
@@ -528,7 +540,7 @@ private fun VideoGridItem(
 }
 
 @Composable
-private fun VideoPropertiesDialog(
+internal fun VideoPropertiesDialog(
     video: Video,
     onDismiss: () -> Unit
 ) {

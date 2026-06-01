@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.rxplayer.app.data.db.PlaylistDao
 import com.rxplayer.app.data.db.PlaylistEntity
 import com.rxplayer.app.data.db.PlaylistVideoEntity
+import com.rxplayer.app.data.db.PlaylistWithCount
+import com.rxplayer.app.data.model.Video
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,11 +21,11 @@ class PlaylistViewModel @Inject constructor(
     private val playlistDao: PlaylistDao
 ) : ViewModel() {
 
-    private val _playlists = MutableStateFlow<List<PlaylistEntity>>(emptyList())
-    val playlists: StateFlow<List<PlaylistEntity>> = _playlists
+    private val _playlists = MutableStateFlow<List<PlaylistWithCount>>(emptyList())
+    val playlists: StateFlow<List<PlaylistWithCount>> = _playlists
 
-    private val _playlistVideos = MutableStateFlow<List<PlaylistVideoEntity>>(emptyList())
-    val playlistVideos: StateFlow<List<PlaylistVideoEntity>> = _playlistVideos
+    private val _playlistVideos = MutableStateFlow<List<Video>>(emptyList())
+    val playlistVideos: StateFlow<List<Video>> = _playlistVideos
 
     init {
         observePlaylists()
@@ -31,7 +33,7 @@ class PlaylistViewModel @Inject constructor(
 
     private fun observePlaylists() {
         viewModelScope.launch {
-            playlistDao.getAllPlaylists()
+            playlistDao.getAllPlaylistsWithCount()
                 .catch { emit(emptyList()) }
                 .collect { _playlists.value = it }
         }
@@ -60,7 +62,9 @@ class PlaylistViewModel @Inject constructor(
         viewModelScope.launch {
             playlistDao.getVideosInPlaylist(playlistId)
                 .catch { emit(emptyList()) }
-                .collect { _playlistVideos.value = it }
+                .collect { entities ->
+                    _playlistVideos.value = entities.map { it.toVideo() }
+                }
         }
     }
 
@@ -80,3 +84,14 @@ class PlaylistViewModel @Inject constructor(
         }
     }
 }
+
+private fun PlaylistVideoEntity.toVideo() = Video(
+    filePath = filePath,
+    folderPath = "",
+    fileName = videoName,
+    duration = duration,
+    fileSize = 0L,
+    resolution = resolution,
+    mimeType = "",
+    addedAt = addedAt
+)

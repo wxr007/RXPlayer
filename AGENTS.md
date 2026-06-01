@@ -179,6 +179,16 @@ After every code change, run `./gradlew installDebug` to compile and install, th
 - **Playlist insertion strategy**: Videos before the current video's folder index get inserted at index 0 (shifting current video up). Videos after get appended at `player.mediaItemCount`. No `player.prepare()` is needed after insertion since the player is already prepared.
 - **Playback mode → repeatMode mapping**: `0`(single)→`REPEAT_MODE_OFF`, `1`(loop-one)→`REPEAT_MODE_ONE`, `2`(sequential)→`REPEAT_MODE_OFF`, `3`(list-loop)→`REPEAT_MODE_ALL`. Set once at init; no changes needed after folder playlist is built.
 
+### Playlist Feature
+- **Data layer**: `PlaylistEntity` (auto-generated id, name, createdAt) + `PlaylistVideoEntity` (composite PK: playlistId, filePath) + `PlaylistWithCount` (DAO query result with videoCount).
+- **DAO**: `PlaylistDao` with `getAllPlaylistsWithCount()`, `insertPlaylist()`, `deletePlaylistById()` + `clearPlaylist()`, `getVideosInPlaylist()`, `addVideoToPlaylist()`, `removeVideoFromPlaylist()`.
+- **ViewModel**: `PlaylistViewModel` exposes `playlists: StateFlow<List<PlaylistWithCount>>` and `playlistVideos: StateFlow<List<Video>>`. `Video` mapping via `PlaylistVideoEntity.toVideo()`.
+- **UI reuse**: `PlaylistsScreen` uses `LazyVerticalGrid` 2 columns with `PlaylistCard` (16:9 icon + count badge, FolderCard-style). `PlaylistDetailScreen` uses `LazyVerticalGrid` 2 columns + `VideoGridItem` with `onRemoveFromPlaylistClick`. `VideoGridItem` in `VideoListScreen` accepts optional `onAddToPlaylistClick`/`onRemoveFromPlaylistClick`.
+- **Add flow**: From `VideoListScreen` → `AddToPlaylistDialog` (select existing or create new). `onAddToPlaylistClick` triggers dialog, `VideoListViewModel.addVideoToPlaylist()`/`createPlaylist()`.
+- **DB version**: v10 added playlists + playlist_videos tables via MIGRATION_9_10. v11 removed FavoriteEntity from entities list (table abandoned in-place, no migration needed).
+- **Navigation**: Bottom nav "播放列表" replaces old "收藏". Route `Playlists` + `PlaylistDetail(playlistId, playlistName)` with Base64-encoded name.
+- **Cleanup**: Old `FavoritesScreen.kt` and `FavoriteEntity.kt` deleted. `FavoriteEntity::class` removed from AppDatabase entities annotation.
+
 ### Code Generation & Plugins
 - **KSP** for Room compiler (`room-compiler`) and Hilt compiler (`hilt-compiler`).
 - Kotlin Compose Compiler Plugin (`org.jetbrains.kotlin.plugin.compose`) — no separate compose-compiler version needed with Kotlin 2.1+.

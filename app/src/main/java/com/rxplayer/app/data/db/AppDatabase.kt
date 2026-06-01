@@ -7,7 +7,6 @@ import androidx.room.TypeConverters
 @Database(
     entities = [
         PlayHistoryEntity::class,
-        FavoriteEntity::class,
         ScenePointEntity::class,
         VideoEntity::class,
         FolderEntity::class,

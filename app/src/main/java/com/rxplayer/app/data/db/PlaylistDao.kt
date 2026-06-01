@@ -7,8 +7,22 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 
+data class PlaylistWithCount(
+    val id: Long,
+    val name: String,
+    val createdAt: Long,
+    val videoCount: Int
+)
+
 @Dao
 interface PlaylistDao {
+    @Query("""
+        SELECT p.id, p.name, p.createdAt,
+        (SELECT COUNT(*) FROM playlist_videos pv WHERE pv.playlistId = p.id) AS videoCount
+        FROM playlists p ORDER BY p.createdAt DESC
+    """)
+    fun getAllPlaylistsWithCount(): Flow<List<PlaylistWithCount>>
+
     @Query("SELECT * FROM playlists ORDER BY createdAt DESC")
     fun getAllPlaylists(): Flow<List<PlaylistEntity>>
 

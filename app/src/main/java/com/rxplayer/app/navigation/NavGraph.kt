@@ -5,13 +5,13 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
+import androidx.compose.material.icons.automirrored.outlined.PlaylistPlay
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.PlaylistPlay
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -48,7 +48,7 @@ data class BottomNavItem(
 
 val bottomNavItems = listOf(
     BottomNavItem("首页", Icons.Filled.Home, Icons.Outlined.Home, Route.FolderList.route),
-    BottomNavItem("播放列表", Icons.Filled.PlaylistPlay, Icons.Outlined.PlaylistPlay, Route.Playlists.route),
+    BottomNavItem("播放列表", Icons.AutoMirrored.Filled.PlaylistPlay, Icons.AutoMirrored.Outlined.PlaylistPlay, Route.Playlists.route),
     BottomNavItem("历史", Icons.Filled.History, Icons.Outlined.History, Route.History.route),
     BottomNavItem("设置", Icons.Filled.Settings, Icons.Outlined.Settings, Route.Settings.route),
 )
