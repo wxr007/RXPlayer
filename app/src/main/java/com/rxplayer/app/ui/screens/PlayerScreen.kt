@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.size
@@ -383,13 +384,45 @@ fun PlayerScreen(
                             .padding(horizontal = 64.dp)
                             .align(Alignment.BottomCenter),
                         colors = SliderDefaults.colors(
-                            thumbColor = Color.White,
-                            activeTrackColor = Color.White.copy(alpha = 0.8f),
-                            inactiveTrackColor = Color.White.copy(alpha = 0.2f)
+                            thumbColor = Color.Transparent,
+                            activeTrackColor = Color.Transparent,
+                            inactiveTrackColor = Color.Transparent
                         ),
                         thumb = {
                             Canvas(modifier = Modifier.size(20.dp)) {
                                 drawCircle(color = Color.White)
+                            }
+                        },
+                        track = { sliderState ->
+                            Canvas(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(10.dp)
+                            ) {
+                                val trackHeight = 10.dp.toPx()
+                                val trackCornerRadius = trackHeight / 2
+                                val thumbRadius = 10.dp.toPx()
+                                val fullTrackWidth = size.width + 2 * thumbRadius
+                                val activeWidth = (sliderState.value * fullTrackWidth).coerceIn(0f, fullTrackWidth)
+
+                                drawRoundRect(
+                                    color = Color.White.copy(alpha = 0.2f),
+                                    topLeft = androidx.compose.ui.geometry.Offset(-thumbRadius, 0f),
+                                    size = androidx.compose.ui.geometry.Size(width = fullTrackWidth, height = trackHeight),
+                                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(trackCornerRadius)
+                                )
+
+                                if (activeWidth > 0) {
+                                    drawRoundRect(
+                                        color = Color.White.copy(alpha = 0.8f),
+                                        topLeft = androidx.compose.ui.geometry.Offset(-thumbRadius, 0f),
+                                        size = androidx.compose.ui.geometry.Size(
+                                            width = activeWidth,
+                                            height = trackHeight
+                                        ),
+                                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(trackCornerRadius)
+                                    )
+                                }
                             }
                         }
                     )
@@ -457,16 +490,49 @@ fun PlayerScreen(
                         onValueChangeFinished = {
                             isDraggingSlider = false
                         },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(vertical = 8.dp),
                         colors = SliderDefaults.colors(
-                            thumbColor = MaterialTheme.colorScheme.primary,
-                            activeTrackColor = MaterialTheme.colorScheme.primary,
-                            inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                            thumbColor = Color.Transparent,
+                            activeTrackColor = Color.Transparent,
+                            inactiveTrackColor = Color.Transparent
                         ),
                         thumb = {
-                            val thumbColor = MaterialTheme.colorScheme.primary
-                            Canvas(modifier = Modifier.size(20.dp)) {
-                                drawCircle(color = thumbColor)
+                            Canvas(modifier = Modifier.size(28.dp)) {
+                                drawCircle(color = Color(0xFF5D4037))
+                            }
+                        },
+                        track = { sliderState ->
+                            Canvas(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(10.dp)
+                            ) {
+                                val trackHeight = 10.dp.toPx()
+                                val trackCornerRadius = trackHeight / 2
+                                val thumbRadius = 14.dp.toPx()
+                                val fullTrackWidth = size.width + 2 * thumbRadius
+                                val activeWidth = (sliderState.value * fullTrackWidth).coerceIn(0f, fullTrackWidth)
+
+                                drawRoundRect(
+                                    color = Color(0xFFD7CCC8),
+                                    topLeft = androidx.compose.ui.geometry.Offset(-thumbRadius, 0f),
+                                    size = androidx.compose.ui.geometry.Size(width = fullTrackWidth, height = trackHeight),
+                                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(trackCornerRadius)
+                                )
+
+                                if (activeWidth > 0) {
+                                    drawRoundRect(
+                                        color = Color(0xFF5D4037),
+                                        topLeft = androidx.compose.ui.geometry.Offset(-thumbRadius, 0f),
+                                        size = androidx.compose.ui.geometry.Size(
+                                            width = activeWidth,
+                                            height = trackHeight
+                                        ),
+                                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(trackCornerRadius)
+                                    )
+                                }
                             }
                         }
                     )
