@@ -56,6 +56,7 @@ class PlayerViewModel @Inject constructor(
     val isAnalyzing: StateFlow<Boolean> = sceneAnalyzer.isAnalyzing
     val autoPlay: StateFlow<Boolean> = settingsManager.autoPlay
     val analysisMode: StateFlow<String> = settingsManager.analysisMode
+    val analysisInterval: StateFlow<Int> = settingsManager.analysisInterval
     val seekStep: StateFlow<Int> = settingsManager.seekStep
 
     private val _folderVideos = MutableStateFlow<List<Video>>(emptyList())
@@ -77,6 +78,12 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun triggerAnalysis() {
+        sceneAnalyzer.analyzeVideo(videoPath, force = true)
+    }
+
+    fun analyzeWithMode(mode: String, interval: Int) {
+        settingsManager.setAnalysisMode(mode)
+        settingsManager.setAnalysisInterval(interval)
         sceneAnalyzer.analyzeVideo(videoPath, force = true)
     }
 

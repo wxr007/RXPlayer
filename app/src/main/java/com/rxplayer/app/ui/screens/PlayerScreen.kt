@@ -31,8 +31,12 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
@@ -117,6 +121,7 @@ fun PlayerScreen(
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
     var privacyMaskEnabled by remember { mutableStateOf(false) }
     var showVideoInfo by remember { mutableStateOf(false) }
+    var showAnalysisDialog by remember { mutableStateOf(false) }
     var videoResolution by remember { mutableStateOf("") }
     var videoCodec by remember { mutableStateOf("") }
     var videoFrameRate by remember { mutableStateOf("") }
@@ -212,6 +217,18 @@ fun PlayerScreen(
                     .show(WindowInsetsCompat.Type.systemBars())
             }
         }
+    }
+
+    if (showAnalysisDialog) {
+        AnalysisSettingsDialog(
+            currentMode = viewModel.analysisMode.value,
+            currentInterval = viewModel.analysisInterval.collectAsState().value,
+            onDismiss = { showAnalysisDialog = false },
+            onConfirm = { mode, interval ->
+                showAnalysisDialog = false
+                viewModel.analyzeWithMode(mode, interval)
+            }
+        )
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -317,7 +334,7 @@ fun PlayerScreen(
                     onBack = onBack,
                     actions = {
                         IconButton(
-                            onClick = { viewModel.triggerAnalysis() },
+                            onClick = { showAnalysisDialog = true },
                             enabled = !isAnalyzing
                         ) {
                             Icon(
@@ -782,6 +799,74 @@ private fun formatDuration(durationMs: Long): String {
     val s = totalSec % 60
     return if (h > 0) "%02d:%02d:%02d".format(h, m, s)
     else "%02d:%02d".format(m, s)
+}
+
+@Composable
+internal fun AnalysisSettingsDialog(
+    currentMode: String,
+    currentInterval: Int,
+    onDismiss: () -> Unit,
+    onConfirm: (mode: String, interval: Int) -> Unit
+) {
+    var selectedMode by remember { mutableStateOf(currentMode) }
+    var selectedInterval by remember { mutableStateOf(currentInterval.toString()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("分析设置") },
+        text = {
+            Column {
+                Text("分析模式", style = MaterialTheme.typography.labelLarge)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        RadioButton(
+                            selected = selectedMode == "smart",
+                            onClick = { selectedMode = "smart" }
+                        )
+                        Text("智能检测", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        RadioButton(
+                            selected = selectedMode == "interval",
+                            onClick = { selectedMode = "interval" }
+                        )
+                        Text("间隔截取", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+
+                if (selectedMode == "interval") {
+                    Text(
+                        "间隔时间（秒）",
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.padding(top = 12.dp)
+                    )
+                    OutlinedTextField(
+                        value = selectedInterval,
+                        onValueChange = { selectedInterval = it.filter { c -> c.isDigit() } },
+                        label = { Text("5-60 秒") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val interval = selectedInterval.toIntOrNull()?.coerceIn(5, 60) ?: 30
+                onConfirm(selectedMode, interval)
+            }) {
+                Text("开始分析")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消")
+            }
+        }
+    )
 }
 
 private fun getDecoderType(decoderName: String): String {
