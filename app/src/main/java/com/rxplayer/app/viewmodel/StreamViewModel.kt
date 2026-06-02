@@ -78,6 +78,14 @@ class StreamViewModel @Inject constructor(
         }
     }
 
+    fun renameStream(streamId: Long, newName: String) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                streamDao.updateName(streamId, newName)
+            }
+        }
+    }
+
     fun deleteStream(streamId: Long) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {

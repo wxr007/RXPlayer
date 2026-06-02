@@ -25,4 +25,7 @@ interface StreamDao {
 
     @Query("SELECT * FROM streams WHERE id = :streamId")
     suspend fun getStreamById(streamId: Long): StreamEntity?
+
+    @Query("UPDATE streams SET name = :name WHERE id = :streamId")
+    suspend fun updateName(streamId: Long, name: String)
 }

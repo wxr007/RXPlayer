@@ -55,10 +55,12 @@ class ThumbnailCache(private val context: Context) {
 
     private fun fileExists(videoPath: String): Boolean {
         return try {
-            if (videoPath.startsWith("content://")) {
-                context.contentResolver.openFileDescriptor(Uri.parse(videoPath), "r")?.use { true } ?: false
-            } else {
-                File(videoPath).exists()
+            when {
+                videoPath.startsWith("content://") -> {
+                    context.contentResolver.openFileDescriptor(Uri.parse(videoPath), "r")?.use { true } ?: false
+                }
+                videoPath.startsWith("http://") || videoPath.startsWith("https://") -> true
+                else -> File(videoPath).exists()
             }
         } catch (_: Exception) {
             false
@@ -68,7 +70,7 @@ class ThumbnailCache(private val context: Context) {
     private fun decodeWithRetriever(videoPath: String, maxWidth: Int): Bitmap? {
         val retriever = MediaMetadataRetriever()
         try {
-            retriever.setDataSource(context, Uri.parse(videoPath))
+            setDataSourceUri(retriever, videoPath)
             val durationUs = (retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
                 ?.toLongOrNull() ?: 0L) * 1000L
             val midUs = if (durationUs > 0) durationUs / 2 else 1_000_000L
@@ -261,12 +263,20 @@ class ThumbnailCache(private val context: Context) {
         return maxWidth to (origHeight * ratio).toInt()
     }
 
+    private fun setDataSourceUri(retriever: MediaMetadataRetriever, videoPath: String) {
+        if (videoPath.startsWith("http://") || videoPath.startsWith("https://")) {
+            retriever.setDataSource(videoPath, emptyMap())
+        } else {
+            retriever.setDataSource(context, Uri.parse(videoPath))
+        }
+    }
+
     suspend fun saveFrameAt(videoPath: String, positionMs: Long, maxWidth: Int = 240): Boolean = withContext(Dispatchers.IO) {
         if (!fileExists(videoPath)) return@withContext false
         var bitmap: Bitmap? = null
         val retriever = MediaMetadataRetriever()
         try {
-            retriever.setDataSource(context, Uri.parse(videoPath))
+            setDataSourceUri(retriever, videoPath)
             bitmap = retriever.getFrameAtTime(positionMs * 1000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
                 ?: retriever.getFrameAtTime(positionMs * 1000L, MediaMetadataRetriever.OPTION_CLOSEST)
         } catch (_: Exception) {

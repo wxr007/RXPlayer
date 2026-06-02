@@ -23,11 +23,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -71,6 +74,7 @@ fun StreamsScreen(
     val cachingIds by viewModel.cachingIds.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<StreamItem?>(null) }
+    var renameTarget by remember { mutableStateOf<StreamItem?>(null) }
 
     if (showAddDialog) {
         AddStreamDialog(
@@ -98,6 +102,41 @@ fun StreamsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { deleteTarget = null }) {
+                    Text("取消")
+                }
+            }
+        )
+    }
+
+    if (renameTarget != null) {
+        var newName by remember(renameTarget) { mutableStateOf(renameTarget!!.name) }
+        AlertDialog(
+            onDismissRequest = { renameTarget = null },
+            title = { Text("重命名") },
+            text = {
+                OutlinedTextField(
+                    value = newName,
+                    onValueChange = { newName = it },
+                    label = { Text("名称") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (newName.isNotBlank()) {
+                            viewModel.renameStream(renameTarget!!.id, newName.trim())
+                            renameTarget = null
+                        }
+                    },
+                    enabled = newName.isNotBlank()
+                ) {
+                    Text("确定")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { renameTarget = null }) {
                     Text("取消")
                 }
             }
@@ -149,7 +188,8 @@ fun StreamsScreen(
                             onStreamClick(playPath, stream.id, stream.name)
                         },
                         onLongClick = { deleteTarget = stream },
-                        onCacheClick = { viewModel.cacheStream(stream.id) }
+                        onCacheClick = { viewModel.cacheStream(stream.id) },
+                        onRenameClick = { renameTarget = stream }
                     )
                 }
             }
@@ -164,10 +204,12 @@ private fun StreamCard(
     isCaching: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
-    onCacheClick: () -> Unit
+    onCacheClick: () -> Unit,
+    onRenameClick: () -> Unit
 ) {
     val context = LocalContext.current
     var thumbnail by remember(stream.url, stream.coverPath) { mutableStateOf<Bitmap?>(null) }
+    var showMenu by remember { mutableStateOf(false) }
 
     LaunchedEffect(stream.url, stream.coverPath) {
         val path = if (stream.coverPath.isNotEmpty()) stream.coverPath
@@ -243,6 +285,36 @@ private fun StreamCard(
                         modifier = Modifier.fillMaxSize(0.4f),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                     )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(2.dp)
+                ) {
+                    IconButton(
+                        onClick = { showMenu = true },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "更多选项",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("重命名") },
+                            onClick = {
+                                showMenu = false
+                                onRenameClick()
+                            }
+                        )
+                    }
                 }
             }
             Text(
