@@ -88,7 +88,7 @@ class ThumbnailCache(private val context: Context) {
         }
     }
 
-    private fun decodeWithMediaCodec(videoPath: String, maxWidth: Int): Bitmap? {
+    private fun decodeWithMediaCodec(videoPath: String, maxWidth: Int, positionUs: Long = -1L): Bitmap? {
         val extractor = MediaExtractor()
         try {
             if (videoPath.startsWith("content://")) {
@@ -108,6 +108,9 @@ class ThumbnailCache(private val context: Context) {
             if (trackIndex < 0) return null
 
             extractor.selectTrack(trackIndex)
+            if (positionUs >= 0L) {
+                extractor.seekTo(positionUs, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
+            }
             val trackFormat = extractor.getTrackFormat(trackIndex)
             val mime = trackFormat.getString(MediaFormat.KEY_MIME) ?: return null
 
@@ -261,7 +264,7 @@ class ThumbnailCache(private val context: Context) {
             retriever.release()
         }
         if (bitmap == null) {
-            bitmap = decodeWithMediaCodec(videoPath, maxWidth)
+            bitmap = decodeWithMediaCodec(videoPath, maxWidth, positionMs * 1000L)
         }
         if (bitmap == null) return@withContext false
         val (newWidth, newHeight) = scaleSize(bitmap.width, bitmap.height, maxWidth)
