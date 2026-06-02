@@ -121,6 +121,7 @@ fun PlayerScreen(
     var videoCodec by remember { mutableStateOf("") }
     var videoFrameRate by remember { mutableStateOf("") }
     var videoDecoderType by remember { mutableStateOf("") }
+    var videoDecoderName by remember { mutableStateOf("") }
 
     val decodedPath = Uri.decode(videoPath)
     val videoName = decodedPath.substringAfterLast("/")
@@ -155,6 +156,7 @@ fun PlayerScreen(
                 initializationDurationMs: Long
             ) {
                 videoDecoderType = getDecoderType(decoderName)
+                videoDecoderName = decoderName
             }
         }
         player.addAnalyticsListener(analyticsListener)
@@ -511,6 +513,13 @@ fun PlayerScreen(
                                 color = Color.White,
                                 fontSize = 12.sp
                             )
+                            if (videoDecoderName.isNotEmpty()) {
+                                Text(
+                                    text = videoDecoderName,
+                                    color = Color.White.copy(alpha = 0.7f),
+                                    fontSize = 11.sp
+                                )
+                            }
                         }
                     }
                 }
