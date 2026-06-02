@@ -137,15 +137,18 @@ class VideoRepository @Inject constructor(
                 }
                 coverPaths.add(thumbnailCache.getCachedPath(videoPath))
             }
+            val (duration, width, height) = withContext(Dispatchers.IO) {
+                getVideoInfo(file.uri)
+            }
             videoEntities.add(
                 VideoEntity(
                     id = index.toLong(),
                     folderPath = safUri,
                     fileName = file.name ?: "unknown",
                     filePath = videoPath,
-                    duration = 0L,
+                    duration = duration,
                     fileSize = file.length() ?: 0L,
-                    resolution = "",
+                    resolution = if (width > 0 && height > 0) "${width}x${height}" else "",
                     mimeType = file.type ?: "video/mp4",
                     addedAt = file.lastModified()
                 )
