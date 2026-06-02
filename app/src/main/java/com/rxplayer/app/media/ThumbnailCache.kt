@@ -248,6 +248,30 @@ class ThumbnailCache(private val context: Context) {
         return maxWidth to (origHeight * ratio).toInt()
     }
 
+    suspend fun saveFrameAt(videoPath: String, positionMs: Long, maxWidth: Int = 240): Boolean = withContext(Dispatchers.IO) {
+        if (!fileExists(videoPath)) return@withContext false
+        var bitmap: Bitmap? = null
+        val retriever = MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(context, Uri.parse(videoPath))
+            bitmap = retriever.getFrameAtTime(positionMs * 1000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                ?: retriever.getFrameAtTime(positionMs * 1000L, MediaMetadataRetriever.OPTION_CLOSEST)
+        } catch (_: Exception) {
+        } finally {
+            retriever.release()
+        }
+        if (bitmap == null) return@withContext false
+        val (newWidth, newHeight) = scaleSize(bitmap.width, bitmap.height, maxWidth)
+        val scaled = Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
+        if (scaled !== bitmap) bitmap.recycle()
+        val file = thumbnailFile(videoPath)
+        FileOutputStream(file).use { out ->
+            scaled.compress(Bitmap.CompressFormat.JPEG, 80, out)
+        }
+        scaled.recycle()
+        true
+    }
+
     fun getCachedPath(videoPath: String): String {
         return thumbnailFile(videoPath).absolutePath
     }

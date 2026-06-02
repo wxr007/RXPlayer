@@ -54,6 +54,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -84,12 +85,14 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import com.rxplayer.app.media.ThumbnailCache
 import com.rxplayer.app.ui.components.CompactTopAppBar
 import com.rxplayer.app.ui.components.SceneAnalysisProgress
 import com.rxplayer.app.ui.components.SceneGrid
 import com.rxplayer.app.ui.components.TimelinePreviewBar
 import com.rxplayer.app.viewmodel.PlayerViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.withTimeoutOrNull
@@ -232,6 +235,7 @@ fun PlayerScreen(
         )
     }
 
+    val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
     val scenes by viewModel.scenes.collectAsState()
@@ -341,6 +345,22 @@ fun PlayerScreen(
                             Icon(
                                 imageVector = Icons.Default.FlashOn,
                                 contentDescription = "视频分析"
+                            )
+                        }
+                        IconButton(
+                            onClick = {
+                                val cache = ThumbnailCache(context)
+                                scope.launch {
+                                    val ok = cache.saveFrameAt(decodedPath, currentPosition)
+                                    snackbarHostState.showSnackbar(
+                                        if (ok) "已替换封面" else "截图失败"
+                                    )
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Pause,
+                                contentDescription = "截图替换封面"
                             )
                         }
                         IconButton(
