@@ -225,24 +225,28 @@ class VideoRepository @Inject constructor(
         folderPath: String,
         onProgress: ((Float, String) -> Unit)? = null
     ) {
+        val name = folderPath.substringAfterLast("/")
+        onProgress?.invoke(0.05f, "正在查询视频文件: $name")
         val videos = if (folderPath.startsWith("content://")) {
             querySafFolder(folderPath)
         } else {
             queryMediaStore(folderPath)
         }
-        val total = videos.size.coerceAtLeast(1)
-        onProgress?.invoke(0f, "正在同步视频列表...")
+        onProgress?.invoke(0.1f, "共找到 ${videos.size} 个视频")
         val entities = videos.map { it.toEntity(folderPath) }
+        onProgress?.invoke(0.15f, "正在保存到数据库...")
         videoDao.replaceFolder(folderPath, entities)
-        val name = folderPath.substringAfterLast("/")
+        onProgress?.invoke(0.2f, "正在处理缩略图...")
         // Pre-generate thumbnails so UI loads from cache immediately
-        videos.take(4).forEachIndexed { i, video ->
-            val pct = (i + 1).toFloat() / 4
+        val thumbnails = videos.take(4)
+        val thumbCount = thumbnails.size
+        thumbnails.forEachIndexed { i, video ->
+            val pct = 0.2f + (i + 1).toFloat() / (thumbCount.coerceAtLeast(1)) * 0.7f
             val fileName = video.fileName
-            onProgress?.invoke(pct * 0.9f, "正在生成缩略图 ($i/4): $fileName")
+            onProgress?.invoke(pct, "正在生成缩略图 (${i + 1}/$thumbCount): $fileName")
             thumbnailCache.getThumbnail(video.filePath)
         }
-        onProgress?.invoke(0.92f, "正在更新封面: $name")
+        onProgress?.invoke(0.95f, "正在更新封面: $name")
         val coverPaths = videos.take(4).map { thumbnailCache.getCachedPath(it.filePath) }
         folderDao.updateCoverPaths(folderPath, coverPaths.joinToString("\n"))
         onProgress?.invoke(1f, "同步完成: $name")
