@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -91,9 +93,16 @@ fun VideoListScreen(
     var showLayoutDialog by remember { mutableStateOf(false) }
     var showAddToPlaylistDialog by remember { mutableStateOf(false) }
     var selectedVideoForPlaylist by remember { mutableStateOf<Video?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
         viewModel.observePlaylists()
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.playlistEvent.collect { msg ->
+            snackbarHostState.showSnackbar(msg)
+        }
     }
 
     LaunchedEffect(folderPath) {
@@ -154,7 +163,8 @@ fun VideoListScreen(
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
         LazyVerticalGrid(
             columns = GridCells.Fixed(gridColumns),

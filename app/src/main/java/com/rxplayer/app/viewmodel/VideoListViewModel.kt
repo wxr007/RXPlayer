@@ -10,9 +10,11 @@ import com.rxplayer.app.data.repository.VideoRepository
 import com.rxplayer.app.data.settings.SettingsManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -55,6 +57,9 @@ class VideoListViewModel @Inject constructor(
 
     private var synced = false
     private var currentFolderPath = ""
+
+    private val _playlistEvent = Channel<String>(Channel.CONFLATED)
+    val playlistEvent: kotlinx.coroutines.flow.Flow<String> = _playlistEvent.receiveAsFlow()
 
     fun loadVideos(folderPath: String) {
         currentFolderPath = folderPath
@@ -221,6 +226,9 @@ class VideoListViewModel @Inject constructor(
 
     fun addVideoToPlaylist(playlistId: Long, video: Video) {
         viewModelScope.launch {
+            val name = withContext(Dispatchers.IO) {
+                playlistDao.getPlaylistById(playlistId)?.name ?: "播放列表"
+            }
             withContext(Dispatchers.IO) {
                 playlistDao.addVideoToPlaylist(
                     PlaylistVideoEntity(
@@ -236,6 +244,7 @@ class VideoListViewModel @Inject constructor(
                     playlistDao.updateCoverPaths(playlistId, updated)
                 }
             }
+            _playlistEvent.trySend("已添加到「$name」")
         }
     }
 
