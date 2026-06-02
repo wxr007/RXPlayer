@@ -122,8 +122,9 @@ class ThumbnailCache(private val context: Context) {
             var bitmap: Bitmap? = null
             var inputDone = false
             var timeoutCount = 0
+            var bestTimeUs = 0L
 
-            while (bitmap == null && timeoutCount < 100) {
+            while (timeoutCount < 100) {
                 if (!inputDone) {
                     val inputIndex = codec.dequeueInputBuffer(10000L)
                     if (inputIndex >= 0) {
@@ -154,7 +155,14 @@ class ThumbnailCache(private val context: Context) {
                             if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM == 0) {
                                 val image = codec.getOutputImage(outputIndex)
                                 if (image != null) {
-                                    bitmap = imageToBitmap(image)
+                                    if (positionUs < 0L || bitmap == null ||
+                                        kotlin.math.abs(bufferInfo.presentationTimeUs - positionUs) <
+                                        kotlin.math.abs(bestTimeUs - positionUs)
+                                    ) {
+                                        bitmap?.recycle()
+                                        bitmap = imageToBitmap(image)
+                                        bestTimeUs = bufferInfo.presentationTimeUs
+                                    }
                                     image.close()
                                 }
                             }
@@ -162,6 +170,8 @@ class ThumbnailCache(private val context: Context) {
                         }
                     }
                 }
+
+                if (inputDone && bitmap != null) break
             }
 
             codec.stop()
