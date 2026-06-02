@@ -178,6 +178,7 @@ After every code change, run `./gradlew installDebug` to compile and install, th
 - **Why addMediaItems over setMediaItems**: `player.setMediaItems()` replaces the entire playlist, causing brief black screen as ExoPlayer rebuilds its timeline. `addMediaItems` inserts items into the existing timeline — no disruption to the currently-playing video.
 - **Playlist insertion strategy**: Videos before the current video's folder index get inserted at index 0 (shifting current video up). Videos after get appended at `player.mediaItemCount`. No `player.prepare()` is needed after insertion since the player is already prepared.
 - **Playback mode → repeatMode mapping**: `0`(single)→`REPEAT_MODE_OFF`, `1`(loop-one)→`REPEAT_MODE_ONE`, `2`(sequential)→`REPEAT_MODE_OFF`, `3`(list-loop)→`REPEAT_MODE_ALL`. Set once at init; no changes needed after folder playlist is built.
+- **PlaylistId support**: `PlayerScreen` accepts optional `playlistId` param. When `> 0`, `PlayerViewModel` loads videos via `PlaylistDao.getVideosInPlaylistSnapshot()` instead of `VideoRepository.getVideosInFolderSnapshot()`, building the same playlist structure for sequential/loop modes.
 
 ### Playlist Feature
 - **Data layer**: `PlaylistEntity` (auto-generated id, name, createdAt) + `PlaylistVideoEntity` (composite PK: playlistId, filePath) + `PlaylistWithCount` (DAO query result with videoCount).

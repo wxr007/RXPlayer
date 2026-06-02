@@ -43,6 +43,15 @@ class SceneAnalyzer @Inject constructor(
         }
     }
 
+    fun clearAnalysis(videoPath: String) {
+        scope.launch {
+            _isAnalyzing.value = true
+            scenePointDao.deleteScenesForVideo(videoPath)
+            detector.clearCache(videoPath)
+            _isAnalyzing.value = false
+        }
+    }
+
     fun analyzeVideo(videoPath: String, force: Boolean = false) {
         Log.d("RXPlayer", "analyzeVideo called, force=$force, videoPath=$videoPath, isAnalyzing=${_isAnalyzing.value}")
         if (_isAnalyzing.value) {

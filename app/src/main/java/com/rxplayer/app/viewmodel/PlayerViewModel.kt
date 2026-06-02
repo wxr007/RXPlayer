@@ -77,6 +77,10 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    fun clearAnalysis() {
+        sceneAnalyzer.clearAnalysis(videoPath)
+    }
+
     fun triggerAnalysis() {
         sceneAnalyzer.analyzeVideo(videoPath, force = true)
     }
