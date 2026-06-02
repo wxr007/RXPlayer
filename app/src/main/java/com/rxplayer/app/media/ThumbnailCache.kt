@@ -3,12 +3,18 @@ package com.rxplayer.app.media
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.ImageFormat
+import android.media.Image
+import android.media.MediaCodec
+import android.media.MediaExtractor
+import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import java.nio.ByteBuffer
 
 class ThumbnailCache(private val context: Context) {
 
@@ -31,7 +37,10 @@ class ThumbnailCache(private val context: Context) {
             return@withContext null
         }
 
-        val bitmap = decodeWithRetriever(videoPath, maxWidth)
+        var bitmap = decodeWithRetriever(videoPath, maxWidth)
+        if (bitmap == null) {
+            bitmap = decodeWithMediaCodec(videoPath, maxWidth)
+        }
 
         if (bitmap != null) {
             FileOutputStream(file).use { out ->
@@ -55,18 +64,155 @@ class ThumbnailCache(private val context: Context) {
 
     private fun decodeWithRetriever(videoPath: String, maxWidth: Int): Bitmap? {
         val retriever = MediaMetadataRetriever()
-        return try {
+        try {
             retriever.setDataSource(context, Uri.parse(videoPath))
-            val frame = retriever.frameAtTime ?: return null
+            // Try multiple frame positions and options for reliability
+            val frame = retriever.getFrameAtTime(1_000_000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                ?: retriever.getFrameAtTime(1_000_000L, MediaMetadataRetriever.OPTION_CLOSEST)
+                ?: retriever.getFrameAtTime(0L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+            if (frame == null) return null
             val (newWidth, newHeight) = scaleSize(frame.width, frame.height, maxWidth)
             val scaled = Bitmap.createScaledBitmap(frame, newWidth, newHeight, true)
-            frame.recycle()
-            scaled
+            if (scaled !== frame) frame.recycle()
+            return scaled
         } catch (_: Exception) {
-            null
+            return null
         } finally {
             retriever.release()
         }
+    }
+
+    private fun decodeWithMediaCodec(videoPath: String, maxWidth: Int): Bitmap? {
+        val extractor = MediaExtractor()
+        try {
+            if (videoPath.startsWith("content://")) {
+                val pfd = context.contentResolver.openFileDescriptor(Uri.parse(videoPath), "r")
+                pfd?.use { extractor.setDataSource(it.fileDescriptor) }
+            } else {
+                extractor.setDataSource(videoPath)
+            }
+            var trackIndex = -1
+            for (i in 0 until extractor.trackCount) {
+                val fmt = extractor.getTrackFormat(i)
+                if (fmt.getString(MediaFormat.KEY_MIME)?.startsWith("video/") == true) {
+                    trackIndex = i
+                    break
+                }
+            }
+            if (trackIndex < 0) return null
+
+            extractor.selectTrack(trackIndex)
+            val trackFormat = extractor.getTrackFormat(trackIndex)
+            val mime = trackFormat.getString(MediaFormat.KEY_MIME) ?: return null
+
+            val codec = MediaCodec.createDecoderByType(mime)
+            codec.configure(trackFormat, null, null, 0)
+            codec.start()
+
+            val bufferInfo = MediaCodec.BufferInfo()
+            var bitmap: Bitmap? = null
+            var inputDone = false
+            var timeoutCount = 0
+
+            while (bitmap == null && timeoutCount < 100) {
+                if (!inputDone) {
+                    val inputIndex = codec.dequeueInputBuffer(10000L)
+                    if (inputIndex >= 0) {
+                        val inputBuf = codec.getInputBuffer(inputIndex)!!
+                        val sampleSize = extractor.readSampleData(inputBuf, 0)
+                        if (sampleSize < 0) {
+                            codec.queueInputBuffer(
+                                inputIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM
+                            )
+                            inputDone = true
+                        } else {
+                            codec.queueInputBuffer(
+                                inputIndex, 0, sampleSize, extractor.sampleTime, 0
+                            )
+                            extractor.advance()
+                        }
+                    }
+                }
+
+                when (val outputIndex = codec.dequeueOutputBuffer(bufferInfo, 10000L)) {
+                    MediaCodec.INFO_TRY_AGAIN_LATER -> {
+                        timeoutCount++
+                        Thread.sleep(100)
+                    }
+                    MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> { /* ignore */ }
+                    else -> {
+                        if (outputIndex >= 0) {
+                            if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM == 0) {
+                                val image = codec.getOutputImage(outputIndex)
+                                if (image != null) {
+                                    bitmap = imageToBitmap(image)
+                                    image.close()
+                                }
+                            }
+                            codec.releaseOutputBuffer(outputIndex, false)
+                        }
+                    }
+                }
+            }
+
+            codec.stop()
+            codec.release()
+
+            if (bitmap != null && maxWidth in 1 until bitmap.width) {
+                val (nw, nh) = scaleSize(bitmap.width, bitmap.height, maxWidth)
+                bitmap = Bitmap.createScaledBitmap(bitmap, nw, nh, true)
+            }
+            return bitmap
+        } catch (_: Exception) {
+            return null
+        } finally {
+            extractor.release()
+        }
+    }
+
+    private fun imageToBitmap(image: Image): Bitmap {
+        if (image.format != ImageFormat.YUV_420_888 || image.planes.size < 3) {
+            val w = image.width
+            val h = image.height
+            val buf = image.planes[0].buffer
+            val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+            bmp.copyPixelsFromBuffer(buf)
+            return bmp
+        }
+        val planes = image.planes
+        val width = image.width
+        val height = image.height
+        val yPlane = planes[0]
+        val uPlane = planes[1]
+        val vPlane = planes[2]
+        val yBuf = yPlane.buffer
+        val uBuf = uPlane.buffer
+        val vBuf = vPlane.buffer
+        val yPixelStride = yPlane.pixelStride
+        val yRowStride = yPlane.rowStride
+        val uPixelStride = uPlane.pixelStride
+        val uRowStride = uPlane.rowStride
+        val vPixelStride = vPlane.pixelStride
+        val vRowStride = vPlane.rowStride
+
+        val pixels = IntArray(width * height)
+        val uvWidth = width / 2
+        val uvHeight = height / 2
+
+        for (j in 0 until height) {
+            for (i in 0 until width) {
+                val yPos = j * yRowStride + i * yPixelStride
+                val uvPos = (j / 2) * uRowStride + (i / 2) * uPixelStride
+                val y = yBuf.get(yPos).toInt() and 0xFF
+                val u = uBuf.get(uvPos).toInt() and 0xFF
+                val v = vBuf.get(uvPos).toInt() and 0xFF
+                val r = (y + 1.402f * (v - 128)).toInt().coerceIn(0, 255)
+                val g = (y - 0.344f * (u - 128) - 0.714f * (v - 128)).toInt().coerceIn(0, 255)
+                val b = (y + 1.772f * (u - 128)).toInt().coerceIn(0, 255)
+                pixels[j * width + i] = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+            }
+        }
+        return Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888)
     }
 
     private fun scaleSize(origWidth: Int, origHeight: Int, maxWidth: Int): Pair<Int, Int> {
