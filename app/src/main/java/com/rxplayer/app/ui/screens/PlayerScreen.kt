@@ -353,7 +353,7 @@ fun PlayerScreen(
                             onClick = {
                                 val cache = ThumbnailCache(context)
                                 scope.launch {
-                                    val ok = cache.saveFrameAt(decodedPath, currentPosition)
+                                    val ok = cache.saveFrameAt(videoPath, currentPosition)
                                     snackbarHostState.showSnackbar(
                                         if (ok) "已替换封面" else "截图失败"
                                     )

@@ -260,13 +260,21 @@ class ThumbnailCache(private val context: Context) {
         } finally {
             retriever.release()
         }
+        if (bitmap == null) {
+            bitmap = decodeWithMediaCodec(videoPath, maxWidth)
+        }
         if (bitmap == null) return@withContext false
         val (newWidth, newHeight) = scaleSize(bitmap.width, bitmap.height, maxWidth)
         val scaled = Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
         if (scaled !== bitmap) bitmap.recycle()
         val file = thumbnailFile(videoPath)
-        FileOutputStream(file).use { out ->
-            scaled.compress(Bitmap.CompressFormat.JPEG, 80, out)
+        try {
+            FileOutputStream(file).use { out ->
+                scaled.compress(Bitmap.CompressFormat.JPEG, 80, out)
+            }
+        } catch (_: Exception) {
+            scaled.recycle()
+            return@withContext false
         }
         scaled.recycle()
         true
