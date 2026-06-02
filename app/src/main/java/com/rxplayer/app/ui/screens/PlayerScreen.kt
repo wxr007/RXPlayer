@@ -220,6 +220,7 @@ fun PlayerScreen(
     }
 
     if (showAnalysisDialog) {
+        val thumbnailCache = remember { com.rxplayer.app.media.ThumbnailCache(context) }
         AnalysisSettingsDialog(
             currentMode = viewModel.analysisMode.value,
             currentInterval = viewModel.analysisInterval.collectAsState().value,
@@ -227,7 +228,8 @@ fun PlayerScreen(
             onConfirm = { mode, interval ->
                 showAnalysisDialog = false
                 viewModel.analyzeWithMode(mode, interval)
-            }
+            },
+            onClearThumbnails = { thumbnailCache.clearCache() }
         )
     }
 
@@ -776,7 +778,8 @@ internal fun AnalysisSettingsDialog(
     currentMode: String,
     currentInterval: Int,
     onDismiss: () -> Unit,
-    onConfirm: (mode: String, interval: Int) -> Unit
+    onConfirm: (mode: String, interval: Int) -> Unit,
+    onClearThumbnails: (() -> Unit)? = null
 ) {
     var selectedMode by remember { mutableStateOf(currentMode) }
     var selectedInterval by remember { mutableStateOf(currentInterval.toString()) }
@@ -830,6 +833,20 @@ internal fun AnalysisSettingsDialog(
                                 activeTrackColor = MaterialTheme.colorScheme.primary
                             )
                         )
+                    }
+                }
+
+                if (onClearThumbnails != null) {
+                    TextButton(
+                        onClick = {
+                            onClearThumbnails()
+                            onDismiss()
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp)
+                    ) {
+                        Text("清除缩略图缓存", color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
