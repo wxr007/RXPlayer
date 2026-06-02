@@ -752,36 +752,6 @@ fun PlayerScreen(
                     SceneAnalysisProgress(progress = progress)
                 }
 
-                if (scenes.isEmpty() && analyzingProgress == null) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        IconButton(
-                            onClick = { viewModel.triggerAnalysis() },
-                            enabled = !isAnalyzing
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.FlashOn,
-                                contentDescription = "分析场景",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        Text(
-                            text = if (isAnalyzing) "分析中..." else "分析镜头切换",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier
-                                .clickable(enabled = !isAnalyzing) {
-                                    viewModel.triggerAnalysis()
-                                }
-                                .align(Alignment.CenterVertically)
-                        )
-                    }
-                }
-
                 SceneGrid(
                     scenes = scenes,
                     currentPosition = currentPosition,
