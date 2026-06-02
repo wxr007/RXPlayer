@@ -267,8 +267,17 @@ class ThumbnailCache(private val context: Context) {
         val retriever = MediaMetadataRetriever()
         try {
             retriever.setDataSource(context, Uri.parse(videoPath))
-            bitmap = retriever.getFrameAtTime(positionMs * 1000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-                ?: retriever.getFrameAtTime(positionMs * 1000L, MediaMetadataRetriever.OPTION_CLOSEST)
+            val timeUs = positionMs * 1000L
+            if (Build.VERSION.SDK_INT >= 31) {
+                // OPTION_CLOSEST is deprecated and behaves like CLOSEST_SYNC on API 31+.
+                // Try NEXT_SYNC first (keyframe after target) to avoid getting stuck
+                // with an early keyframe (e.g., before person appears).
+                bitmap = retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_NEXT_SYNC)
+                    ?: retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+            } else {
+                bitmap = retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                    ?: retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST)
+            }
         } catch (_: Exception) {
         } finally {
             retriever.release()
