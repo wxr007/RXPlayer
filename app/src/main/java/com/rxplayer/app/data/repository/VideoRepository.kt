@@ -119,24 +119,30 @@ class VideoRepository @Inject constructor(
 
     suspend fun scanSafFolderWithProgress(
         safUri: String,
-        onProgress: (Float) -> Unit
+        onProgress: (Float, String) -> Unit
     ): VideoFolder? {
         val uri = Uri.parse(safUri)
         val root = DocumentFile.fromTreeUri(context, uri) ?: return null
         val videoFiles = mutableListOf<DocumentFile>()
         scanVideoFiles(root, videoFiles)
         val total = videoFiles.size.coerceAtLeast(1)
+        val folderName = root.name ?: safFolderDisplayName(safUri)
+        onProgress(0f, "正在扫描: $folderName")
 
         val coverPaths = mutableListOf<String>()
         val videoEntities = mutableListOf<VideoEntity>()
         videoFiles.forEachIndexed { index, file ->
             val videoPath = file.uri.toString()
+            val fileName = file.name ?: "unknown"
+            onProgress((index + 1).toFloat() / total * 0.9f, "正在分析: $fileName")
             if (coverPaths.size < 4) {
+                onProgress((index + 1).toFloat() / total * 0.9f, "正在生成缩略图: $fileName")
                 withContext(Dispatchers.IO) {
                     thumbnailCache.getThumbnail(videoPath)
                 }
                 coverPaths.add(thumbnailCache.getCachedPath(videoPath))
             }
+            onProgress((index + 1).toFloat() / total * 0.9f, "正在获取信息: $fileName")
             val (duration, width, height) = withContext(Dispatchers.IO) {
                 getVideoInfo(file.uri)
             }
@@ -144,7 +150,7 @@ class VideoRepository @Inject constructor(
                 VideoEntity(
                     id = index.toLong(),
                     folderPath = safUri,
-                    fileName = file.name ?: "unknown",
+                    fileName = fileName,
                     filePath = videoPath,
                     duration = duration,
                     fileSize = file.length() ?: 0L,
@@ -153,16 +159,14 @@ class VideoRepository @Inject constructor(
                     addedAt = file.lastModified()
                 )
             )
-            onProgress((index + 1).toFloat() / total * 0.9f)
         }
 
-        val name = root.name ?: safFolderDisplayName(safUri)
-        onProgress(0.92f)
+        onProgress(0.92f, "正在保存: $folderName")
         withContext(Dispatchers.IO) {
             videoDao.replaceFolder(safUri, videoEntities)
         }
         val folder = VideoFolder(
-            name = name,
+            name = folderName,
             path = safUri,
             videoCount = videoFiles.size,
             coverPaths = coverPaths,
@@ -171,7 +175,7 @@ class VideoRepository @Inject constructor(
         withContext(Dispatchers.IO) {
             folderDao.insertAll(listOf(folder.toEntity()))
         }
-        onProgress(1f)
+        onProgress(1f, "完成: $folderName")
         return folder
     }
 

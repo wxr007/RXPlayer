@@ -74,7 +74,6 @@ class HomeViewModel @Inject constructor(
 
         viewModelScope.launch {
             val name = safFolderDisplayName(uriString)
-            _scanningStatus.value = "正在扫描: $name"
             val placeholder = VideoFolder(
                 name = name,
                 path = uriString,
@@ -87,10 +86,10 @@ class HomeViewModel @Inject constructor(
             }
 
             _scanProgress.value = _scanProgress.value + (uriString to 0f)
-            _scanningStatus.value = "正在分析视频: $name"
             withContext(Dispatchers.IO) {
-                repository.scanSafFolderWithProgress(uriString) { pct ->
+                repository.scanSafFolderWithProgress(uriString) { pct, status ->
                     _scanProgress.value = _scanProgress.value + (uriString to pct)
+                    _scanningStatus.value = status
                 }
             }
             _scanProgress.value = _scanProgress.value - uriString
