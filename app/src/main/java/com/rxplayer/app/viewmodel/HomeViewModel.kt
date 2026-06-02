@@ -29,6 +29,9 @@ class HomeViewModel @Inject constructor(
     private val _scanProgress = MutableStateFlow<Map<String, Float>>(emptyMap())
     val scanProgress: StateFlow<Map<String, Float>> = _scanProgress
 
+    private val _scanningStatus = MutableStateFlow<String?>(null)
+    val scanningStatus: StateFlow<String?> = _scanningStatus
+
     private var synced = false
 
     init {
@@ -71,6 +74,7 @@ class HomeViewModel @Inject constructor(
 
         viewModelScope.launch {
             val name = safFolderDisplayName(uriString)
+            _scanningStatus.value = "正在扫描: $name"
             val placeholder = VideoFolder(
                 name = name,
                 path = uriString,
@@ -83,12 +87,14 @@ class HomeViewModel @Inject constructor(
             }
 
             _scanProgress.value = _scanProgress.value + (uriString to 0f)
+            _scanningStatus.value = "正在分析视频: $name"
             withContext(Dispatchers.IO) {
                 repository.scanSafFolderWithProgress(uriString) { pct ->
                     _scanProgress.value = _scanProgress.value + (uriString to pct)
                 }
             }
             _scanProgress.value = _scanProgress.value - uriString
+            _scanningStatus.value = null
         }
     }
 
