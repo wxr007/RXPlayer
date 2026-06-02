@@ -215,6 +215,8 @@ class VideoListViewModel @Inject constructor(
     private fun backgroundSync(folderPath: String) {
         if (synced) return
         synced = true
+        _syncProgress.value = 0f
+        _syncStatus.value = "正在同步视频列表..."
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 repository.syncFolderFromMediaStore(folderPath) { pct, status ->
@@ -222,6 +224,7 @@ class VideoListViewModel @Inject constructor(
                     _syncStatus.value = status
                 }
             }
+            kotlinx.coroutines.delay(600)
             _syncProgress.value = null
             _syncStatus.value = null
         }
