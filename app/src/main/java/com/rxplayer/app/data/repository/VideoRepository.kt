@@ -225,7 +225,7 @@ class VideoRepository @Inject constructor(
         folderPath: String,
         onProgress: ((Float, String) -> Unit)? = null
     ) {
-        val name = folderPath.substringAfterLast("/")
+        val name = if (folderPath.startsWith("content://")) safFolderDisplayName(folderPath) else folderPath.substringAfterLast("/")
         onProgress?.invoke(0.05f, "正在查询视频文件: $name")
         val videos = if (folderPath.startsWith("content://")) {
             querySafFolder(folderPath)
