@@ -222,6 +222,12 @@ class VideoRepository @Inject constructor(
         }
         val entities = videos.map { it.toEntity(folderPath) }
         videoDao.replaceFolder(folderPath, entities)
+        // Pre-generate thumbnails so UI loads from cache immediately
+        videos.take(4).forEach { video ->
+            thumbnailCache.getThumbnail(video.filePath)
+        }
+        val coverPaths = videos.take(4).map { thumbnailCache.getCachedPath(it.filePath) }
+        folderDao.updateCoverPaths(folderPath, coverPaths.joinToString("\n"))
     }
 
     private suspend fun scanSafFolder(safUri: String): VideoFolder? {

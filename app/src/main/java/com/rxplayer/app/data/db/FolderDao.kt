@@ -35,6 +35,9 @@ interface FolderDao {
     @Query("UPDATE folders SET playbackMode = :mode WHERE `path` = :path")
     suspend fun updatePlaybackMode(path: String, mode: Int)
 
+    @Query("UPDATE folders SET coverPaths = :coverPaths WHERE `path` = :path")
+    suspend fun updateCoverPaths(path: String, coverPaths: String)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(folders: List<FolderEntity>)
 
