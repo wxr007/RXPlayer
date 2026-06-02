@@ -835,32 +835,35 @@ internal fun AnalysisSettingsDialog(
                     }
                 }
 
+            }
+        },
+        confirmButton = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 if (onClearThumbnails != null) {
                     TextButton(
                         onClick = {
                             onClearThumbnails()
                             onDismiss()
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 16.dp)
+                        }
                     ) {
                         Text("清除分析结果", color = MaterialTheme.colorScheme.error)
                     }
                 }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                val interval = selectedInterval.toIntOrNull()?.coerceIn(5, 60) ?: 30
-                onConfirm(selectedMode, interval)
-            }) {
-                Text("开始分析")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("取消")
+                Row {
+                    TextButton(onClick = onDismiss) {
+                        Text("取消")
+                    }
+                    TextButton(onClick = {
+                        val interval = selectedInterval.toIntOrNull()?.coerceIn(5, 60) ?: 30
+                        onConfirm(selectedMode, interval)
+                    }) {
+                        Text("开始分析")
+                    }
+                }
             }
         }
     )
