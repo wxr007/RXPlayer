@@ -6,10 +6,13 @@ import android.graphics.BitmapFactory
 import android.graphics.ImageFormat
 import android.media.Image
 import android.media.MediaCodec
+import android.media.MediaCodecInfo
+import android.media.MediaCodecList
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import android.os.Build
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -105,7 +108,7 @@ class ThumbnailCache(private val context: Context) {
             val trackFormat = extractor.getTrackFormat(trackIndex)
             val mime = trackFormat.getString(MediaFormat.KEY_MIME) ?: return null
 
-            val codec = MediaCodec.createDecoderByType(mime)
+            val codec = createSoftwareDecoder(mime) ?: MediaCodec.createDecoderByType(mime)
             codec.configure(trackFormat, null, null, 0)
             codec.start()
 
@@ -167,6 +170,27 @@ class ThumbnailCache(private val context: Context) {
             return null
         } finally {
             extractor.release()
+        }
+    }
+
+    private fun createSoftwareDecoder(mime: String): MediaCodec? {
+        val codecInfos = MediaCodecList(MediaCodecList.ALL_CODECS).codecInfos
+        for (info in codecInfos) {
+            if (!info.isEncoder && info.supportedTypes?.contains(mime) == true) {
+                if (info.isSoftwareDecoder()) {
+                    return MediaCodec.createByCodecName(info.name)
+                }
+            }
+        }
+        return null
+    }
+
+    private fun MediaCodecInfo.isSoftwareDecoder(): Boolean {
+        return if (Build.VERSION.SDK_INT >= 29) {
+            isSoftwareOnly
+        } else {
+            name.startsWith("OMX.google.", ignoreCase = true) ||
+            name.startsWith("c2.google.", ignoreCase = true)
         }
     }
 
