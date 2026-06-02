@@ -9,9 +9,11 @@ import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.automirrored.outlined.PlaylistPlay
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -36,7 +38,9 @@ import com.rxplayer.app.ui.screens.PlaylistDetailScreen
 import com.rxplayer.app.ui.screens.PlaylistsScreen
 import com.rxplayer.app.ui.screens.HomeScreen
 import com.rxplayer.app.ui.screens.PlayerScreen
+import com.rxplayer.app.ui.screens.CacheBrowserScreen
 import com.rxplayer.app.ui.screens.SettingsScreen
+import com.rxplayer.app.ui.screens.StreamsScreen
 import com.rxplayer.app.ui.screens.VideoListScreen
 
 data class BottomNavItem(
@@ -49,6 +53,7 @@ data class BottomNavItem(
 val bottomNavItems = listOf(
     BottomNavItem("首页", Icons.Filled.Home, Icons.Outlined.Home, Route.FolderList.route),
     BottomNavItem("播放列表", Icons.AutoMirrored.Filled.PlaylistPlay, Icons.AutoMirrored.Outlined.PlaylistPlay, Route.Playlists.route),
+    BottomNavItem("流媒体", Icons.Filled.Movie, Icons.Outlined.Movie, Route.Streams.route),
     BottomNavItem("历史", Icons.Filled.History, Icons.Outlined.History, Route.History.route),
     BottomNavItem("设置", Icons.Filled.Settings, Icons.Outlined.Settings, Route.Settings.route),
 )
@@ -131,6 +136,13 @@ fun RXPlayerNavHost() {
                     }
                 )
             }
+            composable(Route.Streams.route) {
+                StreamsScreen(
+                    onStreamClick = { streamUrl, streamId, displayName ->
+                        navController.navigate(Route.Player.createRoute(streamUrl, streamId = streamId, displayName = displayName))
+                    }
+                )
+            }
             composable(
                 route = Route.PlaylistDetail.route,
                 arguments = listOf(
@@ -159,7 +171,16 @@ fun RXPlayerNavHost() {
                 )
             }
             composable(Route.Settings.route) {
-                SettingsScreen()
+                SettingsScreen(
+                    onCacheBrowserClick = {
+                        navController.navigate(Route.CacheBrowser.route)
+                    }
+                )
+            }
+            composable(Route.CacheBrowser.route) {
+                CacheBrowserScreen(
+                    onBack = { navController.popBackStack() }
+                )
             }
             composable(
                 route = Route.Player.route,
@@ -168,7 +189,9 @@ fun RXPlayerNavHost() {
                     navArgument("autoFullscreen") { type = NavType.IntType; defaultValue = 0 },
                     navArgument("playbackMode") { type = NavType.IntType; defaultValue = 0 },
                     navArgument("folderPath") { type = NavType.StringType; defaultValue = "" },
-                    navArgument("playlistId") { type = NavType.LongType; defaultValue = 0L }
+                    navArgument("playlistId") { type = NavType.LongType; defaultValue = 0L },
+                    navArgument("streamId") { type = NavType.LongType; defaultValue = 0L },
+                    navArgument("displayName") { type = NavType.StringType; defaultValue = "" }
                 )
             ) { backStackEntry ->
                 val videoPath = Route.Player.decodePath(backStackEntry.arguments?.getString("videoPath") ?: "")
@@ -176,12 +199,16 @@ fun RXPlayerNavHost() {
                 val playbackMode = backStackEntry.arguments?.getInt("playbackMode") ?: 0
                 val folderPath = Route.Player.decodeFolderPath(backStackEntry.arguments?.getString("folderPath") ?: "")
                 val playlistId = backStackEntry.arguments?.getLong("playlistId") ?: 0L
+                val streamId = backStackEntry.arguments?.getLong("streamId") ?: 0L
+                val displayName = Route.Player.decodeDisplayName(backStackEntry.arguments?.getString("displayName") ?: "")
                 PlayerScreen(
                     videoPath = videoPath,
                     autoFullscreen = autoFullscreen == 1,
                     playbackMode = playbackMode,
                     folderPath = folderPath,
                     playlistId = playlistId,
+                    streamId = streamId,
+                    displayName = displayName,
                     onBack = { navController.popBackStack() }
                 )
             }

@@ -11,9 +11,10 @@ import androidx.room.TypeConverters
         VideoEntity::class,
         FolderEntity::class,
         PlaylistEntity::class,
-        PlaylistVideoEntity::class
+        PlaylistVideoEntity::class,
+        StreamEntity::class
     ],
-    version = 11,
+    version = 14,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -22,4 +23,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun videoDao(): VideoDao
     abstract fun folderDao(): FolderDao
     abstract fun playlistDao(): PlaylistDao
+    abstract fun streamDao(): StreamDao
 }

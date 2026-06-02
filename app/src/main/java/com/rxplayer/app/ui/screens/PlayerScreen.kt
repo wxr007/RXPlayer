@@ -77,7 +77,11 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import android.media.MediaCodecList
 import android.os.Build
 import android.util.Log
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
@@ -107,6 +111,8 @@ fun PlayerScreen(
     playbackMode: Int = 0,
     folderPath: String = "",
     playlistId: Long = 0,
+    streamId: Long = 0,
+    displayName: String = "",
     onBack: () -> Unit,
     viewModel: PlayerViewModel = hiltViewModel()
 ) {
@@ -134,7 +140,7 @@ fun PlayerScreen(
     var videoDecoderName by remember { mutableStateOf("") }
 
     val decodedPath = Uri.decode(videoPath)
-    val videoName = decodedPath.substringAfterLast("/")
+    val videoName = if (displayName.isNotEmpty()) displayName else decodedPath.substringAfterLast("/")
 
     val player = remember {
         val renderersFactory = DefaultRenderersFactory(context)
@@ -245,6 +251,8 @@ fun PlayerScreen(
     val isAnalyzing by viewModel.isAnalyzing.collectAsState()
     val autoPlay by viewModel.autoPlay.collectAsState()
     val seekStep by viewModel.seekStep.collectAsState()
+    val cacheProgress by viewModel.cacheProgress.collectAsState()
+    val isCached by viewModel.isCached.collectAsState()
 
     LaunchedEffect(autoPlay) {
         player.playWhenReady = autoPlay
@@ -354,6 +362,9 @@ fun PlayerScreen(
                                 val cache = ThumbnailCache(context)
                                 scope.launch {
                                     val ok = cache.saveFrameAt(videoPath, currentPosition)
+                                    if (ok && streamId > 0L) {
+                                        viewModel.updateStreamCover(streamId, cache.getCachedPath(videoPath))
+                                    }
                                     snackbarHostState.showSnackbar(
                                         if (ok) "已替换封面" else "截图失败"
                                     )
@@ -364,6 +375,31 @@ fun PlayerScreen(
                                 painter = painterResource(R.drawable.ic_camera_alt),
                                 contentDescription = "截图替换封面"
                             )
+                        }
+                        if (streamId > 0L) {
+                            IconButton(
+                                onClick = { viewModel.cacheCurrentStream() },
+                                enabled = cacheProgress < 0 && !isCached
+                            ) {
+                                if (isCached) {
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = "已缓存",
+                                        tint = Color(0xFF4CAF50)
+                                    )
+                                } else if (cacheProgress >= 0) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Download,
+                                        contentDescription = "缓存到本地"
+                                    )
+                                }
+                            }
                         }
                         IconButton(
                             onClick = { privacyMaskEnabled = !privacyMaskEnabled }
@@ -394,6 +430,24 @@ fun PlayerScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
+            if (!isFullScreen && streamId > 0L && cacheProgress >= 0) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                ) {
+                    LinearProgressIndicator(
+                        progress = { cacheProgress / 100f },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Text(
+                        text = "下载中 $cacheProgress%",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
+            }
             Box(
                 modifier = Modifier
                     .fillMaxWidth()

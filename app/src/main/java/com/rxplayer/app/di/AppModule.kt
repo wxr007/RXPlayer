@@ -8,6 +8,7 @@ import com.rxplayer.app.data.db.AppDatabase
 import com.rxplayer.app.data.db.FolderDao
 import com.rxplayer.app.data.db.PlaylistDao
 import com.rxplayer.app.data.db.ScenePointDao
+import com.rxplayer.app.data.db.StreamDao
 import com.rxplayer.app.data.db.VideoDao
 import dagger.Module
 import dagger.Provides
@@ -27,7 +28,7 @@ object AppModule {
             context,
             AppDatabase::class.java,
             "rxplayer.db"
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14)
             .build()
     }
 
@@ -49,6 +50,36 @@ object AppModule {
     @Provides
     fun providePlaylistDao(database: AppDatabase): PlaylistDao {
         return database.playlistDao()
+    }
+
+    @Provides
+    fun provideStreamDao(database: AppDatabase): StreamDao {
+        return database.streamDao()
+    }
+
+    private val MIGRATION_11_12 = object : Migration(11, 12) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS `streams` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `name` TEXT NOT NULL,
+                    `url` TEXT NOT NULL,
+                    `addedAt` INTEGER NOT NULL
+                )
+            """.trimIndent())
+        }
+    }
+
+    private val MIGRATION_12_13 = object : Migration(12, 13) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `streams` ADD COLUMN `cachedPath` TEXT NOT NULL DEFAULT ''")
+        }
+    }
+
+    private val MIGRATION_13_14 = object : Migration(13, 14) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `streams` ADD COLUMN `coverPath` TEXT NOT NULL DEFAULT ''")
+        }
     }
 
     private val MIGRATION_10_11 = object : Migration(10, 11) {
