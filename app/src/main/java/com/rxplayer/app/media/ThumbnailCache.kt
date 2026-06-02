@@ -69,9 +69,12 @@ class ThumbnailCache(private val context: Context) {
         val retriever = MediaMetadataRetriever()
         try {
             retriever.setDataSource(context, Uri.parse(videoPath))
-            // Try multiple frame positions and options for reliability
-            val frame = retriever.getFrameAtTime(1_000_000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-                ?: retriever.getFrameAtTime(1_000_000L, MediaMetadataRetriever.OPTION_CLOSEST)
+            val durationUs = (retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                ?.toLongOrNull() ?: 0L) * 1000L
+            val midUs = if (durationUs > 0) durationUs / 2 else 1_000_000L
+            val frame = retriever.getFrameAtTime(midUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                ?: retriever.getFrameAtTime(midUs, MediaMetadataRetriever.OPTION_CLOSEST)
+                ?: retriever.getFrameAtTime(1_000_000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
                 ?: retriever.getFrameAtTime(0L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
             if (frame == null) return null
             val (newWidth, newHeight) = scaleSize(frame.width, frame.height, maxWidth)
