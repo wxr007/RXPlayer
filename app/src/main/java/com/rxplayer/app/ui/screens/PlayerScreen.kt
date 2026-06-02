@@ -63,6 +63,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -85,6 +86,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import com.rxplayer.app.R
 import com.rxplayer.app.media.ThumbnailCache
 import com.rxplayer.app.ui.components.CompactTopAppBar
 import com.rxplayer.app.ui.components.SceneAnalysisProgress
@@ -359,7 +361,7 @@ fun PlayerScreen(
                             }
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Pause,
+                                painter = painterResource(R.drawable.ic_camera_alt),
                                 contentDescription = "截图替换封面"
                             )
                         }
