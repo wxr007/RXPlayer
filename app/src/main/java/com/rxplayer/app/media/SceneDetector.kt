@@ -168,7 +168,9 @@ class SceneDetector(private val context: Context) {
 
     fun clearCache(videoPath: String) {
         val uri = Uri.parse(videoPath)
-        cacheDirFor(uri).listFiles()?.forEach { it.delete() }
+        val dir = cacheDirFor(uri)
+        dir.listFiles()?.forEach { it.delete() }
+        dir.delete()
     }
 
     companion object {
