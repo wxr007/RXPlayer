@@ -221,20 +221,31 @@ class VideoRepository @Inject constructor(
         return videoDao.getVideosInFolderSnapshot(folderPath).map { it.toModel() }
     }
 
-    suspend fun syncFolderFromMediaStore(folderPath: String) {
+    suspend fun syncFolderFromMediaStore(
+        folderPath: String,
+        onProgress: ((Float, String) -> Unit)? = null
+    ) {
         val videos = if (folderPath.startsWith("content://")) {
             querySafFolder(folderPath)
         } else {
             queryMediaStore(folderPath)
         }
+        val total = videos.size.coerceAtLeast(1)
+        onProgress?.invoke(0f, "正在同步视频列表...")
         val entities = videos.map { it.toEntity(folderPath) }
         videoDao.replaceFolder(folderPath, entities)
+        val name = folderPath.substringAfterLast("/")
         // Pre-generate thumbnails so UI loads from cache immediately
-        videos.take(4).forEach { video ->
+        videos.take(4).forEachIndexed { i, video ->
+            val pct = (i + 1).toFloat() / 4
+            val fileName = video.fileName
+            onProgress?.invoke(pct * 0.9f, "正在生成缩略图 ($i/4): $fileName")
             thumbnailCache.getThumbnail(video.filePath)
         }
+        onProgress?.invoke(0.92f, "正在更新封面: $name")
         val coverPaths = videos.take(4).map { thumbnailCache.getCachedPath(it.filePath) }
         folderDao.updateCoverPaths(folderPath, coverPaths.joinToString("\n"))
+        onProgress?.invoke(1f, "同步完成: $name")
     }
 
     private suspend fun scanSafFolder(safUri: String): VideoFolder? {

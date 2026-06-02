@@ -10,6 +10,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,6 +23,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -94,6 +100,8 @@ fun VideoListScreen(
     var showAddToPlaylistDialog by remember { mutableStateOf(false) }
     var selectedVideoForPlaylist by remember { mutableStateOf<Video?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val syncStatus by viewModel.syncStatus.collectAsState()
+    val syncProgress by viewModel.syncProgress.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.observePlaylists()
@@ -166,27 +174,65 @@ fun VideoListScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(gridColumns),
-            contentPadding = PaddingValues(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            items(videos, key = { it.filePath }) { video ->
-                VideoGridItem(
-                    video = video,
-                    cropMode = cropMode,
-                    portrait = portrait,
-                    resolutionDisplay = resolutionDisplay,
-                    onClick = { onVideoClick(video.filePath, autoFullscreen, playbackMode) },
-                    onAddToPlaylistClick = {
-                        selectedVideoForPlaylist = video
-                        showAddToPlaylistDialog = true
+            AnimatedVisibility(
+                visible = syncStatus != null,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = syncStatus ?: "",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    if (syncProgress != null) {
+                        LinearProgressIndicator(
+                            progress = { syncProgress!! },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(2.dp)
+                                .padding(top = 2.dp)
+                        )
+                    } else {
+                        LinearProgressIndicator(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(2.dp)
+                                .padding(top = 2.dp)
+                        )
                     }
-                )
+                }
+            }
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(gridColumns),
+                contentPadding = PaddingValues(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+            ) {
+                items(videos, key = { it.filePath }) { video ->
+                    VideoGridItem(
+                        video = video,
+                        cropMode = cropMode,
+                        portrait = portrait,
+                        resolutionDisplay = resolutionDisplay,
+                        onClick = { onVideoClick(video.filePath, autoFullscreen, playbackMode) },
+                        onAddToPlaylistClick = {
+                            selectedVideoForPlaylist = video
+                            showAddToPlaylistDialog = true
+                        }
+                    )
+                }
             }
         }
     }

@@ -58,6 +58,12 @@ class VideoListViewModel @Inject constructor(
     private var synced = false
     private var currentFolderPath = ""
 
+    private val _syncStatus = MutableStateFlow<String?>(null)
+    val syncStatus: StateFlow<String?> = _syncStatus
+
+    private val _syncProgress = MutableStateFlow<Float?>(null)
+    val syncProgress: StateFlow<Float?> = _syncProgress
+
     private val _playlistEvent = Channel<String>(Channel.CONFLATED)
     val playlistEvent: kotlinx.coroutines.flow.Flow<String> = _playlistEvent.receiveAsFlow()
 
@@ -211,8 +217,13 @@ class VideoListViewModel @Inject constructor(
         synced = true
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                repository.syncFolderFromMediaStore(folderPath)
+                repository.syncFolderFromMediaStore(folderPath) { pct, status ->
+                    _syncProgress.value = pct
+                    _syncStatus.value = status
+                }
             }
+            _syncProgress.value = null
+            _syncStatus.value = null
         }
     }
 
