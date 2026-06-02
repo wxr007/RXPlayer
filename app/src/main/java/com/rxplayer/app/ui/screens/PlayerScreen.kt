@@ -838,18 +838,29 @@ internal fun AnalysisSettingsDialog(
                 }
 
                 if (selectedMode == "interval") {
-                    Text(
-                        "间隔时间（秒）",
-                        style = MaterialTheme.typography.labelLarge,
-                        modifier = Modifier.padding(top = 12.dp)
-                    )
-                    OutlinedTextField(
-                        value = selectedInterval,
-                        onValueChange = { selectedInterval = it.filter { c -> c.isDigit() } },
-                        label = { Text("5-60 秒") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp, start = 8.dp, end = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "${selectedInterval.toIntOrNull()?.coerceIn(5, 60) ?: 30}秒",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                        Slider(
+                            value = (selectedInterval.toIntOrNull()?.coerceIn(5, 60) ?: 30).toFloat(),
+                            onValueChange = { selectedInterval = it.toInt().toString() },
+                            valueRange = 5f..60f,
+                            steps = 54,
+                            modifier = Modifier.weight(1f),
+                            colors = SliderDefaults.colors(
+                                thumbColor = MaterialTheme.colorScheme.primary,
+                                activeTrackColor = MaterialTheme.colorScheme.primary
+                            )
+                        )
+                    }
                 }
             }
         },
