@@ -68,7 +68,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import android.media.MediaCodecList
+import android.os.Build
 import android.util.Log
+import androidx.compose.material.icons.filled.Info
+import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -112,6 +116,11 @@ fun PlayerScreen(
     var overlayTimerKey by remember { mutableStateOf(0) }
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
     var privacyMaskEnabled by remember { mutableStateOf(false) }
+    var showVideoInfo by remember { mutableStateOf(false) }
+    var videoResolution by remember { mutableStateOf("") }
+    var videoCodec by remember { mutableStateOf("") }
+    var videoFrameRate by remember { mutableStateOf("") }
+    var videoDecoderType by remember { mutableStateOf("") }
 
     val decodedPath = Uri.decode(videoPath)
     val videoName = decodedPath.substringAfterLast("/")
@@ -136,6 +145,20 @@ fun PlayerScreen(
                 playerError = "播放失败: $msg"
             }
         })
+    }
+
+    DisposableEffect(player) {
+        val analyticsListener = object : AnalyticsListener {
+            override fun onVideoDecoderInitialized(
+                eventTime: AnalyticsListener.EventTime,
+                decoderName: String,
+                initializationDurationMs: Long
+            ) {
+                videoDecoderType = getDecoderType(decoderName)
+            }
+        }
+        player.addAnalyticsListener(analyticsListener)
+        onDispose { player.removeAnalyticsListener(analyticsListener) }
     }
 
     val folderVideos by viewModel.folderVideos.collectAsState()
@@ -214,6 +237,23 @@ fun PlayerScreen(
             if (!isDraggingSlider && totalDuration > 0) {
                 sliderProgress = currentPosition.toFloat() / totalDuration
             }
+            val fmt = player.videoFormat
+            if (fmt != null) {
+                videoResolution = "${fmt.width}×${fmt.height}"
+                val mime = fmt.sampleMimeType ?: ""
+                videoCodec = when {
+                    mime.contains("avc") || mime.contains("h264") -> "H.264"
+                    mime.contains("hevc") || mime.contains("h265") -> "H.265"
+                    mime.contains("vp9") -> "VP9"
+                    mime.contains("vp8") -> "VP8"
+                    mime.contains("av1") -> "AV1"
+                    mime.contains("mpeg2") -> "MPEG-2"
+                    mime.contains("mpeg4") || mime.contains("mp4v") -> "MPEG-4"
+                    mime.isNotEmpty() -> mime.substringAfterLast("/")
+                    else -> ""
+                }
+                videoFrameRate = if (fmt.frameRate > 0f) "${"%.2f".format(fmt.frameRate)}fps" else ""
+            }
             delay(200)
         }
     }
@@ -291,6 +331,14 @@ fun PlayerScreen(
                                     else Icons.Default.Visibility,
                                 contentDescription = if (privacyMaskEnabled) "关闭隐私遮罩"
                                     else "开启隐私遮罩"
+                            )
+                        }
+                        IconButton(
+                            onClick = { showVideoInfo = !showVideoInfo }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = "视频信息"
                             )
                         }
                     }
@@ -426,18 +474,67 @@ fun PlayerScreen(
                     }
                 }
 
+                if (showVideoInfo && videoResolution.isNotEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(top = if (playbackSpeed > 1f) 40.dp else 8.dp, start = 8.dp, end = 8.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.Black.copy(alpha = 0.7f))
+                            .padding(12.dp)
+                    ) {
+                        Column {
+                            Text(
+                                text = "视频信息",
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "分辨率: $videoResolution",
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                            Text(
+                                text = "编码: $videoCodec",
+                                color = Color.White,
+                                fontSize = 12.sp
+                            )
+                            Text(
+                                text = "帧率: $videoFrameRate",
+                                color = Color.White,
+                                fontSize = 12.sp
+                            )
+                            Text(
+                                text = "解码: $videoDecoderType",
+                                color = Color.White,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                }
+
                 if (isFullScreen && showOverlay) {
-                    IconButton(
-                        onClick = toggleFullScreen,
+                    Row(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
                             .padding(8.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.FullscreenExit,
-                            contentDescription = "退出全屏",
-                            tint = Color.White
-                        )
+                        IconButton(onClick = { showVideoInfo = !showVideoInfo }) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = "视频信息",
+                                tint = Color.White
+                            )
+                        }
+                        IconButton(onClick = toggleFullScreen) {
+                            Icon(
+                                imageVector = Icons.Default.FullscreenExit,
+                                contentDescription = "退出全屏",
+                                tint = Color.White
+                            )
+                        }
                     }
                 }
 
@@ -676,6 +773,16 @@ private fun formatDuration(durationMs: Long): String {
     val s = totalSec % 60
     return if (h > 0) "%02d:%02d:%02d".format(h, m, s)
     else "%02d:%02d".format(m, s)
+}
+
+private fun getDecoderType(decoderName: String): String {
+    return if (Build.VERSION.SDK_INT >= 29) {
+        val codecInfos = MediaCodecList(MediaCodecList.ALL_CODECS).codecInfos
+        val info = codecInfos.find { it.name == decoderName }
+        if (info?.isSoftwareOnly == true) "软解码" else "硬件解码"
+    } else {
+        if (decoderName.startsWith("OMX.google.", ignoreCase = true)) "软解码" else "硬件解码"
+    }
 }
 
 private fun Modifier.gestureHandler(
