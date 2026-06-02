@@ -224,7 +224,6 @@ class VideoListViewModel @Inject constructor(
                     _syncStatus.value = status
                 }
             }
-            kotlinx.coroutines.delay(600)
             _syncProgress.value = null
             _syncStatus.value = null
         }
