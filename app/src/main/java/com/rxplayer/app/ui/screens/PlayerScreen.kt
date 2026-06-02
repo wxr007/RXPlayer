@@ -68,8 +68,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import android.util.Log
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.rxplayer.app.ui.components.CompactTopAppBar
@@ -113,7 +117,25 @@ fun PlayerScreen(
     val videoName = decodedPath.substringAfterLast("/")
 
     val player = remember {
-        ExoPlayer.Builder(context).build()
+        val renderersFactory = DefaultRenderersFactory(context)
+            .setEnableDecoderFallback(true)
+        ExoPlayer.Builder(context, renderersFactory).build()
+    }
+
+    var playerError by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(player) {
+        player.addListener(object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_READY && playerError != null) {
+                    playerError = null
+                }
+            }
+            override fun onPlayerError(error: PlaybackException) {
+                val msg = error.localizedMessage ?: error.errorCodeName
+                Log.e("RXPlayer", "Playback error: $msg", error)
+                playerError = "播放失败: $msg"
+            }
+        })
     }
 
     val folderVideos by viewModel.folderVideos.collectAsState()
@@ -323,6 +345,22 @@ fun PlayerScreen(
                             onSpeedChange = { speed -> playbackSpeed = speed }
                         )
                 )
+
+                if (playerError != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.7f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = playerError!!,
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(32.dp)
+                        )
+                    }
+                }
 
                 if (privacyMaskEnabled) {
                     Box(
