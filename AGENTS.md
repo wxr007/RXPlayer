@@ -26,13 +26,13 @@
 
 ## Workflow Rule
 
-After every code change, run `./gradlew installDebug` to compile and install, then `git add` + `git commit` with a descriptive message. Do not skip compilation or commit unless the user explicitly says otherwise.
-
-每次修改完成后必须将修改提交到 git，并在 AGENTS.md 中记录本次修改的内容摘要。请不要跳过提交步骤。
-
 操作顺序：**先改 versionName，再 `./gradlew installDebug` 编译安装，最后 `git add` + `git commit` 提交。**
 
 每次修改完成后需要在 `app/build.gradle.kts` 中递增 `versionName`（如 1.0.0 → 1.0.1 → 1.0.2）。
+
+After every code change, run `./gradlew installDebug` to compile and install, then `git add` + `git commit` with a descriptive message. Do not skip compilation or commit unless the user explicitly says otherwise.
+
+每次修改完成后必须将修改提交到 git，并在 AGENTS.md 中记录本次修改的内容摘要。请不要跳过提交步骤。
 
 ## Project Technical Stack
 
