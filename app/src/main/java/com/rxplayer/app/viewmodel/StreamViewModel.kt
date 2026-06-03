@@ -26,7 +26,11 @@ data class StreamItem(
     val url: String,
     val addedAt: Long,
     val cachedPath: String,
-    val coverPath: String
+    val coverPath: String,
+    val resolution: String = "",
+    val codec: String = "",
+    val frameRate: String = "",
+    val durationMs: Long = 0L
 )
 
 @HiltViewModel
@@ -144,6 +148,14 @@ class StreamViewModel @Inject constructor(
         }
     }
 
+    fun updateVideoInfo(streamId: Long, resolution: String, codec: String, frameRate: String, durationMs: Long) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                streamDao.updateVideoInfo(streamId, resolution, codec, frameRate, durationMs)
+            }
+        }
+    }
+
     fun cacheStream(streamId: Long) {
         val stream = _streams.value.find { it.id == streamId } ?: return
         if (stream.cachedPath.isNotEmpty() && File(stream.cachedPath).exists()) return
@@ -172,7 +184,11 @@ private fun StreamEntity.toItem() = StreamItem(
     url = url,
     addedAt = addedAt,
     cachedPath = cachedPath,
-    coverPath = coverPath
+    coverPath = coverPath,
+    resolution = resolution,
+    codec = codec,
+    frameRate = frameRate,
+    durationMs = durationMs
 )
 
 private fun StreamItem.toEntity() = StreamEntity(
@@ -181,5 +197,9 @@ private fun StreamItem.toEntity() = StreamEntity(
     url = url,
     addedAt = addedAt,
     cachedPath = cachedPath,
-    coverPath = coverPath
+    coverPath = coverPath,
+    resolution = resolution,
+    codec = codec,
+    frameRate = frameRate,
+    durationMs = durationMs
 )

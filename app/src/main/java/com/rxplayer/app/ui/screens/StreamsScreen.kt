@@ -211,6 +211,36 @@ private fun StreamCard(
     val context = LocalContext.current
     var thumbnail by remember(stream.url, stream.coverPath) { mutableStateOf<Bitmap?>(null) }
     var showMenu by remember { mutableStateOf(false) }
+    var showProperties by remember { mutableStateOf(false) }
+
+    if (showProperties) {
+        AlertDialog(
+            onDismissRequest = { showProperties = false },
+            title = { Text("属性") },
+            text = {
+                Column {
+                    Text("名称: ${stream.name}", style = MaterialTheme.typography.bodySmall)
+                    Text("分辨率: ${stream.resolution}", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+                    Text("编码: ${stream.codec}", style = MaterialTheme.typography.bodySmall)
+                    Text("帧率: ${stream.frameRate}", style = MaterialTheme.typography.bodySmall)
+                    if (stream.durationMs > 0L) {
+                        val totalSec = stream.durationMs / 1000
+                        val h = totalSec / 3600
+                        val m = (totalSec % 3600) / 60
+                        val s = totalSec % 60
+                        val durationStr = if (h > 0) "%02d:%02d:%02d".format(h, m, s) else "%02d:%02d".format(m, s)
+                        Text("时长: $durationStr", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Text("链接: ${stream.url}", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showProperties = false }) {
+                    Text("关闭")
+                }
+            }
+        )
+    }
 
     LaunchedEffect(stream.url, stream.coverPath) {
         val path = if (stream.coverPath.isNotEmpty()) stream.coverPath
@@ -319,6 +349,13 @@ private fun StreamCard(
                             onClick = {
                                 showMenu = false
                                 onRenameClick()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("属性") },
+                            onClick = {
+                                showMenu = false
+                                showProperties = true
                             }
                         )
                     }

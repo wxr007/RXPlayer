@@ -14,7 +14,7 @@ import androidx.room.TypeConverters
         PlaylistVideoEntity::class,
         StreamEntity::class
     ],
-    version = 14,
+    version = 15,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

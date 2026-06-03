@@ -28,4 +28,7 @@ interface StreamDao {
 
     @Query("UPDATE streams SET name = :name WHERE id = :streamId")
     suspend fun updateName(streamId: Long, name: String)
+
+    @Query("UPDATE streams SET resolution = :resolution, codec = :codec, frameRate = :frameRate, durationMs = :durationMs WHERE id = :streamId")
+    suspend fun updateVideoInfo(streamId: Long, resolution: String, codec: String, frameRate: String, durationMs: Long)
 }

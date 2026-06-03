@@ -305,6 +305,15 @@ class PlayerViewModel @Inject constructor(
         sceneAnalyzer.analyzeVideo(videoPath, force = true)
     }
 
+    fun updateStreamVideoInfo(resolution: String, codec: String, frameRate: String, durationMs: Long) {
+        if (streamId <= 0L) return
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                streamDao.updateVideoInfo(streamId, resolution, codec, frameRate, durationMs)
+            }
+        }
+    }
+
     fun updateStreamCover(streamId: Long, coverPath: String) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {

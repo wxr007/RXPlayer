@@ -13,8 +13,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -66,6 +69,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -83,7 +87,7 @@ import android.os.Build
 import android.util.Log
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Info
+
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.media3.exoplayer.analytics.AnalyticsListener
@@ -141,13 +145,13 @@ fun PlayerScreen(
     var overlayTimerKey by remember { mutableStateOf(0) }
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
     var privacyMaskEnabled by remember { mutableStateOf(false) }
-    var showVideoInfo by remember { mutableStateOf(false) }
     var showAnalysisDialog by remember { mutableStateOf(false) }
     var videoResolution by remember { mutableStateOf("") }
     var videoCodec by remember { mutableStateOf("") }
     var videoFrameRate by remember { mutableStateOf("") }
     var videoDecoderType by remember { mutableStateOf("") }
     var videoDecoderName by remember { mutableStateOf("") }
+    var videoInfoSaved by remember { mutableStateOf(false) }
     var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
 
     val decodedPath = Uri.decode(videoPath)
@@ -326,6 +330,10 @@ fun PlayerScreen(
                 }
                 videoFrameRate = if (fmt.frameRate > 0f) "${"%.2f".format(fmt.frameRate)}fps" else ""
             }
+            if (streamId > 0L && !videoInfoSaved && videoResolution.isNotEmpty()) {
+                videoInfoSaved = true
+                viewModel.updateStreamVideoInfo(videoResolution, videoCodec, videoFrameRate, totalDuration)
+            }
             delay(200)
         }
     }
@@ -456,14 +464,6 @@ fun PlayerScreen(
                                     else Icons.Default.Visibility,
                                 contentDescription = if (privacyMaskEnabled) "关闭隐私遮罩"
                                     else "开启隐私遮罩"
-                            )
-                        }
-                        IconButton(
-                            onClick = { showVideoInfo = !showVideoInfo }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Info,
-                                contentDescription = "视频信息"
                             )
                         }
                     }
@@ -602,8 +602,8 @@ fun PlayerScreen(
                 if (playbackSpeed > 1f) {
                     Box(
                         modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .padding(8.dp)
+                            .align(Alignment.TopCenter)
+                            .padding(top = 8.dp)
                             .clip(RoundedCornerShape(4.dp))
                             .background(Color.Black.copy(alpha = 0.6f))
                             .padding(horizontal = 8.dp, vertical = 4.dp)
@@ -617,67 +617,12 @@ fun PlayerScreen(
                     }
                 }
 
-                if (showVideoInfo && videoResolution.isNotEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .padding(top = if (playbackSpeed > 1f) 40.dp else 8.dp, start = 8.dp, end = 8.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color.Black.copy(alpha = 0.7f))
-                            .padding(12.dp)
-                    ) {
-                        Column {
-                            Text(
-                                text = "视频信息",
-                                color = Color.White,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "分辨率: $videoResolution",
-                                color = Color.White,
-                                fontSize = 12.sp,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
-                            Text(
-                                text = "编码: $videoCodec",
-                                color = Color.White,
-                                fontSize = 12.sp
-                            )
-                            Text(
-                                text = "帧率: $videoFrameRate",
-                                color = Color.White,
-                                fontSize = 12.sp
-                            )
-                            Text(
-                                text = "解码: $videoDecoderType",
-                                color = Color.White,
-                                fontSize = 12.sp
-                            )
-                            if (videoDecoderName.isNotEmpty()) {
-                                Text(
-                                    text = videoDecoderName,
-                                    color = Color.White.copy(alpha = 0.7f),
-                                    fontSize = 11.sp
-                                )
-                            }
-                        }
-                    }
-                }
-
                 if (isFullScreen && showOverlay) {
                     Row(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
                             .padding(8.dp)
                     ) {
-                        IconButton(onClick = { showVideoInfo = !showVideoInfo }) {
-                            Icon(
-                                imageVector = Icons.Default.Info,
-                                contentDescription = "视频信息",
-                                tint = Color.White
-                            )
-                        }
                         IconButton(onClick = toggleFullScreen) {
                             Icon(
                                 imageVector = Icons.Default.FullscreenExit,
@@ -869,6 +814,43 @@ fun PlayerScreen(
                             imageVector = Icons.Default.Fullscreen,
                             contentDescription = "全屏"
                         )
+                    }
+                }
+
+                if (videoResolution.isNotEmpty()) {
+                    Text(
+                        text = buildString {
+                            append(videoResolution)
+                            if (videoCodec.isNotEmpty()) append(" · $videoCodec")
+                            if (videoFrameRate.isNotEmpty()) append(" · $videoFrameRate")
+                            if (videoDecoderType.isNotEmpty()) append(" · $videoDecoderType")
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 2.dp)
+                    )
+                    if (streamId > 0L) {
+                        val clipboard = LocalClipboardManager.current
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 1.dp)
+                                .horizontalScroll(rememberScrollState())
+                                .pointerInput(Unit) {
+                                    detectTapGestures(onDoubleTap = {
+                                        clipboard.setText(androidx.compose.ui.text.AnnotatedString(videoPath))
+                                        scope.launch { snackbarHostState.showSnackbar("已复制到剪贴板") }
+                                    })
+                                }
+                        ) {
+                            Text(
+                                text = videoPath,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            )
+                        }
                     }
                 }
 

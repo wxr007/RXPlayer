@@ -10,5 +10,9 @@ data class StreamEntity(
     val url: String,
     val addedAt: Long,
     val cachedPath: String = "",
-    val coverPath: String = ""
+    val coverPath: String = "",
+    val resolution: String = "",
+    val codec: String = "",
+    val frameRate: String = "",
+    val durationMs: Long = 0L
 )

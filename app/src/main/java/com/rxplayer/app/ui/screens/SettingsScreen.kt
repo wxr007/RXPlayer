@@ -35,8 +35,6 @@ fun SettingsScreen(
 ) {
     val themeMode by viewModel.themeMode.collectAsState()
     val autoPlay by viewModel.autoPlay.collectAsState()
-    val analysisMode by viewModel.analysisMode.collectAsState()
-    val analysisInterval by viewModel.analysisInterval.collectAsState()
     val seekStep by viewModel.seekStep.collectAsState()
     val resolutionDisplay by viewModel.resolutionDisplay.collectAsState()
 
@@ -96,59 +94,6 @@ fun SettingsScreen(
         }
 
         HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-        Text(
-            text = "视频分析模式",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 4.dp)
-        )
-
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            listOf("smart" to "智能分析", "interval" to "固定截图").forEach { (key, label) ->
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.clickable { viewModel.setAnalysisMode(key) }
-                ) {
-                    RadioButton(
-                        selected = analysisMode == key,
-                        onClick = { viewModel.setAnalysisMode(key) }
-                    )
-                    Text(text = label, style = MaterialTheme.typography.bodySmall)
-                }
-            }
-        }
-
-        if (analysisMode == "interval") {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "${analysisInterval}秒",
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.width(48.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Slider(
-                    value = analysisInterval.toFloat(),
-                    onValueChange = { viewModel.setAnalysisInterval(it.toInt()) },
-                    valueRange = 5f..60f,
-                    steps = 54,
-                    modifier = Modifier.weight(1f),
-                    colors = SliderDefaults.colors(
-                        thumbColor = MaterialTheme.colorScheme.primary,
-                        activeTrackColor = MaterialTheme.colorScheme.primary
-                    )
-                )
-            }
-        }
-
-        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
         Text(
             text = "快进快退时间",
