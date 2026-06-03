@@ -179,12 +179,11 @@ class StreamViewModel @Inject constructor(
         connection.instanceFollowRedirects = true
         connection.connect()
 
-        val responseCode = connection.responseCode
-        if (responseCode != HttpURLConnection.HTTP_OK) {
-            throw IOException("Server returned $responseCode for $stream.url")
-        }
-
+        // IMPORTANT: Do NOT call getResponseCode() before getInputStream().
+        // On Android, getResponseCode() silently consumes the response body,
+        // causing getInputStream() to return an empty stream.
         val contentType = connection.contentType ?: ""
+        val contentLength = connection.contentLengthLong
         val isPlayableType = contentType.startsWith("video/") ||
             contentType.startsWith("audio/") ||
             contentType.contains("mpegurl") ||
@@ -193,26 +192,34 @@ class StreamViewModel @Inject constructor(
             contentType == "binary/octet-stream" ||
             ext in setOf("mp4", "mkv", "ts", "webm", "m3u8", "mpd")
 
-        if (!isPlayableType && !contentType.isNullOrBlank() && contentType != "application/octet-stream") {
+        if (!isPlayableType && contentType.isNotBlank()) {
             connection.disconnect()
             throw IOException("服务器返回了非视频内容 ($contentType)，请检查串流地址是否正确")
         }
 
-        val contentLength = connection.contentLengthLong
-        connection.inputStream.use { input ->
-            FileOutputStream(file).use { output ->
-                val buffer = ByteArray(8192)
-                var totalRead = 0L
-                var bytesRead: Int
-                while (input.read(buffer).also { bytesRead = it } != -1) {
-                    output.write(buffer, 0, bytesRead)
-                    totalRead += bytesRead
-                    if (contentLength > 0) {
-                        onProgress((totalRead * 100 / contentLength).toInt())
+        try {
+            connection.inputStream.use { input ->
+                FileOutputStream(file).use { output ->
+                    val buffer = ByteArray(8192)
+                    var totalRead = 0L
+                    var bytesRead: Int
+                    while (input.read(buffer).also { bytesRead = it } != -1) {
+                        output.write(buffer, 0, bytesRead)
+                        totalRead += bytesRead
+                        if (contentLength > 0) {
+                            onProgress((totalRead * 100 / contentLength).toInt())
+                        }
                     }
                 }
             }
+        } catch (e: IOException) {
+            connection.disconnect()
+            file.delete()
+            val responseCode = try { connection.responseCode } catch (_: Exception) { -1 }
+            val errorDetail = if (responseCode > 0) "服务器返回 $responseCode" else e.message
+            throw IOException("下载失败: $errorDetail")
         }
+
         if (file.length() == 0L) {
             file.delete()
             throw IOException("下载文件为空，请检查串流地址是否正确")
