@@ -244,7 +244,12 @@ class PlayerViewModel @Inject constructor(
                 }
             }
         }
-        if (file.length() < 1024L) {
+        if (file.length() == 0L) {
+            file.delete()
+            throw IOException("下载文件为空，请检查串流地址是否正确")
+        }
+        val minSize = if (ext in setOf("m3u8", "mpd")) 20L else 1024L
+        if (file.length() < minSize) {
             file.delete()
             throw IOException("下载文件太小 (${file.length()} bytes)，可能不是有效的视频内容")
         }
