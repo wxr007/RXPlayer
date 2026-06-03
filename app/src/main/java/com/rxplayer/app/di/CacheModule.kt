@@ -7,6 +7,8 @@ import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
+import androidx.media3.exoplayer.offline.DefaultDownloadIndex
+import androidx.media3.exoplayer.offline.DefaultDownloaderFactory
 import androidx.media3.exoplayer.offline.DownloadManager
 import dagger.Module
 import dagger.Provides
@@ -14,7 +16,6 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import java.io.File
-import java.util.concurrent.Executors
 import javax.inject.Singleton
 
 @Module
@@ -61,14 +62,10 @@ object CacheModule {
     fun provideDownloadManager(
         @ApplicationContext context: Context,
         databaseProvider: ExoDatabaseProvider,
-        cache: SimpleCache,
-        upstreamFactory: DataSource.Factory
+        cacheDataSourceFactory: CacheDataSource.Factory
     ): DownloadManager {
-        return DownloadManager(
-            context, databaseProvider, cache, upstreamFactory,
-            Executors.newSingleThreadExecutor()
-        ).also {
-            it.resumeDownloads()
-        }
+        val downloadIndex = DefaultDownloadIndex(databaseProvider, "downloads")
+        val downloaderFactory = DefaultDownloaderFactory(cacheDataSourceFactory)
+        return DownloadManager(context, downloadIndex, downloaderFactory)
     }
 }
