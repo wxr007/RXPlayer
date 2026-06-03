@@ -36,6 +36,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -44,6 +46,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,9 +76,19 @@ fun StreamsScreen(
     val streams by viewModel.streams.collectAsState()
     val cachingIds by viewModel.cachingIds.collectAsState()
     val cachingProgress by viewModel.cachingProgress.collectAsState()
+    val cacheError by viewModel.cacheError.collectAsState()
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     var showAddDialog by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<StreamItem?>(null) }
     var renameTarget by remember { mutableStateOf<StreamItem?>(null) }
+
+    LaunchedEffect(cacheError) {
+        cacheError?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearCacheError()
+        }
+    }
 
     if (showAddDialog) {
         AddStreamDialog(
@@ -154,7 +167,8 @@ fun StreamsScreen(
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
         if (streams.isEmpty()) {
             Box(

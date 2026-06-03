@@ -269,6 +269,14 @@ fun PlayerScreen(
     val seekStep by viewModel.seekStep.collectAsState()
     val cacheProgress by viewModel.cacheProgress.collectAsState()
     val isCached by viewModel.isCached.collectAsState()
+    val cacheError by viewModel.cacheError.collectAsState()
+
+    LaunchedEffect(cacheError) {
+        cacheError?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearCacheError()
+        }
+    }
 
     LaunchedEffect(autoPlay) {
         player.playWhenReady = autoPlay

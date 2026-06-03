@@ -83,6 +83,11 @@ class PlayerViewModel @Inject constructor(
     private val _isCached = MutableStateFlow(false)
     val isCached: StateFlow<Boolean> = _isCached
 
+    private val _cacheError = MutableStateFlow<String?>(null)
+    val cacheError: StateFlow<String?> = _cacheError
+
+    fun clearCacheError() { _cacheError.value = null }
+
     init {
         if (streamId > 0L) {
             checkCached()
@@ -154,6 +159,7 @@ class PlayerViewModel @Inject constructor(
                 _isCached.value = true
             } catch (e: Exception) {
                 Log.e("RXPlayer", "Download failed for stream $streamId", e)
+                _cacheError.value = e.message ?: "下载失败"
             } finally {
                 _cacheProgress.value = -1
             }
@@ -208,6 +214,21 @@ class PlayerViewModel @Inject constructor(
         if (responseCode != HttpURLConnection.HTTP_OK) {
             throw IOException("Server returned $responseCode for $url")
         }
+
+        val contentType = conn.contentType ?: ""
+        val isPlayableType = contentType.startsWith("video/") ||
+            contentType.startsWith("audio/") ||
+            contentType.contains("mpegurl") ||
+            contentType.contains("dash+xml") ||
+            contentType == "application/octet-stream" ||
+            contentType == "binary/octet-stream" ||
+            ext in setOf("mp4", "mkv", "ts", "webm", "m3u8", "mpd")
+
+        if (!isPlayableType && !contentType.isNullOrBlank() && contentType != "application/octet-stream") {
+            conn.disconnect()
+            throw IOException("服务器返回了非视频内容 ($contentType)，请检查串流地址是否正确")
+        }
+
         val contentLength = conn.contentLengthLong
         conn.inputStream.use { input ->
             FileOutputStream(file).use { output ->
@@ -223,9 +244,9 @@ class PlayerViewModel @Inject constructor(
                 }
             }
         }
-        if (file.length() == 0L) {
+        if (file.length() < 1024L) {
             file.delete()
-            throw IOException("Downloaded file is empty for $url")
+            throw IOException("下载文件太小 (${file.length()} bytes)，可能不是有效的视频内容")
         }
         return file.absolutePath
     }

@@ -46,6 +46,9 @@ class StreamViewModel @Inject constructor(
     private val _cachingProgress = MutableStateFlow<Map<Long, Int>>(emptyMap())
     val cachingProgress: StateFlow<Map<Long, Int>> = _cachingProgress
 
+    private val _cacheError = MutableStateFlow<String?>(null)
+    val cacheError: StateFlow<String?> = _cacheError
+
     private val downloadJobs = mutableMapOf<Long, Job>()
 
     init {
@@ -123,6 +126,7 @@ class StreamViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Log.e("RXPlayer", "Download failed for $streamId", e)
+                _cacheError.value = e.message ?: "下载失败"
             } finally {
                 _cachingIds.value = _cachingIds.value - streamId
                 _cachingProgress.value = _cachingProgress.value - streamId
@@ -139,6 +143,10 @@ class StreamViewModel @Inject constructor(
                 streamDao.updateCachedPath(streamId, "")
             }
         }
+    }
+
+    fun clearCacheError() {
+        _cacheError.value = null
     }
 
     private fun deleteCachedFile(streamId: Long) {
@@ -175,6 +183,21 @@ class StreamViewModel @Inject constructor(
         if (responseCode != HttpURLConnection.HTTP_OK) {
             throw IOException("Server returned $responseCode for $stream.url")
         }
+
+        val contentType = connection.contentType ?: ""
+        val isPlayableType = contentType.startsWith("video/") ||
+            contentType.startsWith("audio/") ||
+            contentType.contains("mpegurl") ||
+            contentType.contains("dash+xml") ||
+            contentType == "application/octet-stream" ||
+            contentType == "binary/octet-stream" ||
+            ext in setOf("mp4", "mkv", "ts", "webm", "m3u8", "mpd")
+
+        if (!isPlayableType && !contentType.isNullOrBlank() && contentType != "application/octet-stream") {
+            connection.disconnect()
+            throw IOException("服务器返回了非视频内容 ($contentType)，请检查串流地址是否正确")
+        }
+
         val contentLength = connection.contentLengthLong
         connection.inputStream.use { input ->
             FileOutputStream(file).use { output ->
@@ -190,9 +213,9 @@ class StreamViewModel @Inject constructor(
                 }
             }
         }
-        if (file.length() == 0L) {
+        if (file.length() < 1024L) {
             file.delete()
-            throw IOException("Downloaded file is empty for $stream.url")
+            throw IOException("下载文件太小 (${file.length()} bytes)，可能不是有效的视频内容")
         }
         return file.absolutePath
     }
