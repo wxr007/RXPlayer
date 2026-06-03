@@ -32,6 +32,8 @@ After every code change, run `./gradlew installDebug` to compile and install, th
 
 每次修改完成后需要在 `app/build.gradle.kts` 中递增 `versionName`（如 1.0.0 → 1.0.1 → 1.0.2）。
 
+操作顺序：**先改 versionName，再 `./gradlew installDebug` 编译安装，最后 `git add` + `git commit` 提交。**
+
 ## Project Technical Stack
 
 - **Build:** Gradle 8.11.1 + Kotlin DSL, AGP 8.7.3
