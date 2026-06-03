@@ -1,6 +1,7 @@
 package com.rxplayer.app.viewmodel
 
 import android.content.Context
+import android.net.Uri
 import android.util.Base64
 import android.util.Log
 import androidx.lifecycle.SavedStateHandle
@@ -9,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.exoplayer.offline.Download
 import androidx.media3.exoplayer.offline.DownloadManager
+import androidx.media3.exoplayer.offline.DownloadRequest
 import com.rxplayer.app.data.db.PlaylistDao
 import com.rxplayer.app.data.db.StreamDao
 import com.rxplayer.app.data.db.toVideo
@@ -20,15 +22,12 @@ import com.rxplayer.app.media.SceneData
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URL
 import javax.inject.Inject
 
 @HiltViewModel
@@ -88,6 +87,31 @@ class PlayerViewModel @Inject constructor(
 
     fun clearCacheError() { _cacheError.value = null }
 
+    suspend fun resolveStreamUri(fallbackPath: String): Uri {
+        if (streamId <= 0L) {
+            return if (fallbackPath.startsWith("/") || fallbackPath.startsWith("file://"))
+                Uri.fromFile(File(fallbackPath)) else Uri.parse(fallbackPath)
+        }
+        val entity = withContext(Dispatchers.IO) { streamDao.getStreamById(streamId) }
+            ?: return if (fallbackPath.startsWith("/") || fallbackPath.startsWith("file://"))
+                Uri.fromFile(File(fallbackPath)) else Uri.parse(fallbackPath)
+
+        if (entity.cachedPath.isNotEmpty()) {
+            if (entity.cachedPath.startsWith("dl:")) {
+                return Uri.parse(entity.url)
+            }
+            val ext = entity.cachedPath.substringAfterLast(".").lowercase()
+            if (ext in setOf("m3u8", "mpd")) {
+                return Uri.parse(entity.url)
+            }
+            val f = File(entity.cachedPath)
+            if (f.exists() && f.length() > 0L) {
+                return Uri.fromFile(f)
+            }
+        }
+        return Uri.parse(entity.url)
+    }
+
     init {
         if (streamId > 0L) {
             checkCached()
@@ -117,14 +141,18 @@ class PlayerViewModel @Inject constructor(
                 streamDao.getStreamById(streamId)
             }
             if (entity != null && entity.cachedPath.isNotEmpty()) {
-                if (entity.cachedPath.toLongOrNull() == null) {
-                    val f = File(entity.cachedPath)
-                    if (f.exists() && f.length() > 0L) {
+                if (entity.cachedPath.startsWith("dl:")) {
+                    if (checkDownloadManagerCached()) {
                         _isCached.value = true
-                        return@launch
                     }
-                    if (f.exists()) f.delete()
+                    return@launch
                 }
+                val f = File(entity.cachedPath)
+                if (f.exists() && f.length() > 0L) {
+                    _isCached.value = true
+                    return@launch
+                }
+                if (f.exists()) f.delete()
             }
             if (checkDownloadManagerCached()) {
                 _isCached.value = true
@@ -140,7 +168,11 @@ class PlayerViewModel @Inject constructor(
                 streamDao.getStreamById(streamId)
             } ?: return@launch
             if (entity.cachedPath.isNotEmpty()) {
-                if (entity.cachedPath.toLongOrNull() == null) {
+                if (entity.cachedPath.startsWith("dl:")) {
+                    if (checkDownloadManagerCached()) {
+                        _isCached.value = true; return@launch
+                    }
+                } else {
                     val f = File(entity.cachedPath)
                     if (f.exists() && f.length() > 0L) {
                         _isCached.value = true; return@launch
@@ -154,19 +186,45 @@ class PlayerViewModel @Inject constructor(
 
             _cacheProgress.value = 0
             try {
-                val cachedPath = withContext(Dispatchers.IO) {
-                    downloadToFile(entity.name, entity.url, streamId) { progress ->
-                        if (_cacheProgress.value >= 0) {
-                            _cacheProgress.value = progress
+                val request = DownloadRequest.Builder(streamId.toString(), Uri.parse(entity.url))
+                    .build()
+                downloadManager.addDownload(request)
+                withContext(Dispatchers.IO) {
+                    streamDao.updateCachedPath(streamId, "${CACHE_PREFIX_DM}$streamId")
+                }
+
+                while (true) {
+                    val dl = withContext(Dispatchers.IO) {
+                        downloadManager.getDownloadIndex().getDownload(streamId.toString())
+                    }
+                    if (dl == null) { delay(500); continue }
+                    when (dl.state) {
+                        Download.STATE_COMPLETED -> {
+                            _cacheProgress.value = 100
+                            _isCached.value = true
+                            break
+                        }
+                        Download.STATE_FAILED -> {
+                            throw Exception("下载失败: ${failureReasonString(dl.failureReason)}")
+                        }
+                        Download.STATE_REMOVING -> {
+                            throw Exception("下载被取消")
+                        }
+                        else -> {
+                            val pct = dl.percentDownloaded.toInt()
+                            if (pct > 0 && _cacheProgress.value >= 0) {
+                                _cacheProgress.value = pct
+                            }
                         }
                     }
+                    delay(1000)
                 }
-                withContext(Dispatchers.IO) {
-                    streamDao.updateCachedPath(streamId, cachedPath)
-                }
-                _isCached.value = true
             } catch (e: Exception) {
                 Log.e("RXPlayer", "Download failed for stream $streamId", e)
+                downloadManager.removeDownload(streamId.toString())
+                withContext(Dispatchers.IO) {
+                    streamDao.updateCachedPath(streamId, "")
+                }
                 _cacheError.value = e.message ?: "下载失败"
             } finally {
                 _cacheProgress.value = -1
@@ -181,7 +239,7 @@ class PlayerViewModel @Inject constructor(
                 streamDao.getStreamById(streamId)
             }
             if (entity != null) {
-                if (entity.cachedPath.isNotEmpty() && entity.cachedPath.toLongOrNull() == null) {
+                if (entity.cachedPath.isNotEmpty() && !entity.cachedPath.startsWith("dl:")) {
                     val file = File(entity.cachedPath)
                     if (file.exists()) file.delete()
                 }
@@ -196,94 +254,9 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    private fun downloadToFile(
-        name: String,
-        url: String,
-        streamId: Long,
-        onProgress: (Int) -> Unit
-    ): String {
-        val cacheDir = File(context.getExternalCacheDir() ?: context.cacheDir, "stream_cache")
-        cacheDir.mkdirs()
-
-        val safeName = name.replace(Regex("[\\\\/:*?\"<>|]"), "_").take(50)
-        val urlPath = URL(url).path
-        val rawExt = urlPath.substringAfterLast(".").substringBefore("?").substringBefore("#").take(8)
-        val ext = rawExt.ifBlank { "mp4" }
-        val file = File(cacheDir, "${streamId}_${safeName}.${ext}")
-
-        val conn = URL(url).openConnection() as HttpURLConnection
-        conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Android 14; Mobile; rv:120.0)")
-        conn.connectTimeout = 15000
-        conn.readTimeout = 30000
-        conn.instanceFollowRedirects = true
-        conn.connect()
-
-        // IMPORTANT: Do NOT call getResponseCode() before getInputStream().
-        // On Android, getResponseCode() silently consumes the response body,
-        // causing getInputStream() to return an empty stream.
-        val contentType = conn.contentType ?: ""
-        val contentLength = conn.contentLengthLong
-        val isPlayableType = contentType.startsWith("video/") ||
-            contentType.startsWith("audio/") ||
-            contentType.contains("mpegurl") ||
-            contentType.contains("dash+xml") ||
-            contentType == "application/octet-stream" ||
-            contentType == "binary/octet-stream" ||
-            ext in setOf("mp4", "mkv", "ts", "webm", "m3u8", "mpd")
-
-        if (!isPlayableType && contentType.isNotBlank()) {
-            conn.disconnect()
-            throw IOException("服务器返回了非视频内容 ($contentType)，请检查串流地址是否正确")
-        }
-
-        try {
-            conn.inputStream.use { input ->
-                FileOutputStream(file).use { output ->
-                    val buffer = ByteArray(8192)
-                    var totalRead = 0L
-                    var bytesRead: Int
-                    while (input.read(buffer).also { bytesRead = it } != -1) {
-                        output.write(buffer, 0, bytesRead)
-                        totalRead += bytesRead
-                        if (contentLength > 0) {
-                            onProgress((totalRead * 100 / contentLength).toInt())
-                        }
-                    }
-                }
-            }
-        } catch (e: IOException) {
-            conn.disconnect()
-            file.delete()
-            val responseCode = try { conn.responseCode } catch (_: Exception) { -1 }
-            val errorDetail = if (responseCode > 0) "服务器返回 $responseCode" else e.message
-            throw IOException("下载失败: $errorDetail")
-        }
-
-        if (file.length() == 0L) {
-            file.delete()
-            throw IOException("下载文件为空，请检查串流地址是否正确")
-        }
-        val minSize = if (ext in setOf("m3u8", "mpd")) 20L else 1024L
-        if (file.length() < minSize) {
-            file.delete()
-            throw IOException("下载文件太小 (${file.length()} bytes)，可能不是有效的视频内容")
-        }
-
-        val header = file.inputStream().use { input ->
-            val bytes = ByteArray(512)
-            val n = input.read(bytes)
-            if (n > 0) String(bytes, 0, n, Charsets.UTF_8) else ""
-        }
-        val headerTrimmed = header.trim().lowercase()
-        if (headerTrimmed.startsWith("<!doctype") || headerTrimmed.startsWith("<html") ||
-            headerTrimmed.startsWith("<head") || headerTrimmed.startsWith("<?xml") ||
-            headerTrimmed.startsWith("{") || headerTrimmed.startsWith("[")
-        ) {
-            file.delete()
-            throw IOException("下载内容不是视频文件 (HTML/JSON)，请检查串流地址是否正确")
-        }
-
-        return file.absolutePath
+    private fun failureReasonString(reason: Int): String = when (reason) {
+        Download.FAILURE_REASON_UNKNOWN -> "未知错误"
+        else -> "错误码 $reason"
     }
 
     private val _folderVideos = MutableStateFlow<List<Video>>(emptyList())

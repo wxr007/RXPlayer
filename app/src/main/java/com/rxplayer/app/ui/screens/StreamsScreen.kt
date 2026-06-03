@@ -200,7 +200,12 @@ fun StreamsScreen(
                         isCaching = stream.id in cachingIds,
                         cacheProgress = cachingProgress[stream.id] ?: 0,
                         onClick = {
-                            val playPath = if (stream.cachedPath.isNotEmpty() && stream.cachedPath.toLongOrNull() == null) stream.cachedPath else stream.url
+                            val playPath = if (stream.cachedPath.startsWith("dl:")) {
+                                stream.url
+                            } else if (stream.cachedPath.isNotEmpty() && stream.cachedPath.toLongOrNull() == null) {
+                                val ext = stream.cachedPath.substringAfterLast(".").lowercase()
+                                if (ext in setOf("m3u8", "mpd")) stream.url else stream.cachedPath
+                            } else stream.url
                             onStreamClick(playPath, stream.id, stream.name)
                         },
                         onLongClick = { deleteTarget = stream },

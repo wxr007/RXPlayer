@@ -198,7 +198,9 @@ fun PlayerScreen(
     val folderVideos by viewModel.folderVideos.collectAsState()
 
     LaunchedEffect(Unit) {
-        val mediaUri = if (videoPath.startsWith("/") || videoPath.startsWith("file://")) {
+        val mediaUri = if (streamId > 0L) {
+            viewModel.resolveStreamUri(videoPath)
+        } else if (videoPath.startsWith("/") || videoPath.startsWith("file://")) {
             Uri.fromFile(File(videoPath))
         } else {
             Uri.parse(videoPath)
