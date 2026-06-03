@@ -108,6 +108,7 @@ After every code change, run `./gradlew installDebug` to compile and install, th
 - **Top bar:** Use `CompactTopAppBar(title, onBack, actions)` in `ui/components/` for all screens. Custom 40dp row with `statusBarsPadding()` — avoids M3 `TopAppBar` default 64dp height.
 - **NavHost animations:** Disable default 700ms fade with `fadeIn/Out(tween(0))` to prevent mis-tap during page transitions.
 - **Buttons in PlayerScreen:** Analyze button uses `Icons.Default.FlashOn` (lightning bolt) instead of `Icons.Default.Refresh`. Privacy mask button toggles `Visibility`/`VisibilityOff`.
+- **Video info in PlayerScreen:** Resolution, codec, frame rate, and decoder type are displayed as a compact text line below the progress bar (non-fullscreen) or below the slider (fullscreen). The video info button (Info icon) has been removed. Data gathered from `Player.Listener.onVideoSizeChanged` and `AnalyticsListener.onVideoDecoderInitialized`.
 
 ### Coroutines
 - ViewModel scope: `viewModelScope.launch { ... }`
@@ -172,6 +173,17 @@ After every code change, run `./gradlew installDebug` to compile and install, th
 - **"smart"**: Compares 32×32 pixel histograms every 500ms, captures when diff > 0.25 threshold (default). Produces variable number of scenes per video.
 - **"interval"**: Captures one frame every `intervalSec` seconds regardless of scene change. Simpler, deterministic number of scenes (`durationMs / intervalMs`).
 - Selected via SettingsScreen, persisted in SharedPreferences.
+
+### Stream Download & Caching (DownloadManager)
+- Uses **ExoPlayer DownloadManager** for HLS/DASH and progressive stream caching.
+- DownloadManager created with old-style constructor: `DownloadManager(context, databaseProvider, cache, upstreamFactory, Executors.newSingleThreadExecutor())` — must call `resumeDownloads()` to start processing.
+- `CacheModule.kt` provides `DownloadManager`, `SimpleCache` (with `ExoDatabaseProvider`), and `CacheDataSource.Factory` all as `@Singleton`.
+- **StreamViewModel**: `pollDownloadStates()` loops every 1s querying `DownloadIndex.getDownloads()` to track DOWNLOADING/COMPLETED states for all streams. Completed downloads update `streamDao.updateCachedPath(sid, sid.toString())` — cache path is the stream ID string, not a file path.
+- **PlayerViewModel**: Uses `DownloadManager.Listener` for real-time progress callbacks per stream. Falls back to polling (`pollDownloadProgress()`) for re-entry scenarios.
+- `cachedPath` is a numeric string (stream ID) for DM downloads → playback uses original URL (CacheDataSource serves cached segments). For file-based progressive downloads, `cachedPath` is a file path → playback uses `Uri.fromFile()`.
+- `resolveStreamUri()` in PlayerViewModel: if `cachedPath.toLongOrNull() != null` (DM cached), returns original URL; else if local file exists, returns `Uri.fromFile()`; else returns original URL.
+- `SimpleCache` stored in `context.cacheDir/exoplayer_cache/` with 500MB LRU evictor.
+- `ExoDatabaseProvider` stores download index in `downloads` table within app's private database.
 
 ### Player Initialization & Playlist
 - **Two-phase init in `PlayerScreen.kt`**: Phase 1 (in `LaunchedEffect(Unit)`) immediately calls `player.setMediaItem(uri)` + `player.prepare()` so user sees video content right away, avoiding the ~5s black screen from `syncFolderFromMediaStore`. Phase 2 (same `LaunchedEffect`) waits for `folderVideos` StateFlow via `snapshotFlow { folderVideos }.firstOrNull { it.isNotEmpty() }`, then uses `player.addMediaItems()` to insert other folder videos around the current one without timeline rebuild.
