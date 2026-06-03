@@ -86,8 +86,10 @@ import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.rxplayer.app.R
@@ -145,7 +147,12 @@ fun PlayerScreen(
     val player = remember {
         val renderersFactory = DefaultRenderersFactory(context)
             .setEnableDecoderFallback(true)
-        ExoPlayer.Builder(context, renderersFactory).build()
+        val cdf = viewModel.getCacheDataSourceFactory()
+        ExoPlayer.Builder(context, renderersFactory)
+            .setMediaSourceFactory(
+                DefaultMediaSourceFactory(context).setDataSourceFactory(cdf)
+            )
+            .build()
     }
 
     var playerError by remember { mutableStateOf<String?>(null) }
