@@ -31,6 +31,7 @@ import com.rxplayer.app.viewmodel.SettingsViewModel
 @Composable
 fun SettingsScreen(
     onCacheBrowserClick: () -> Unit = {},
+    onFileBrowserClick: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val themeMode by viewModel.themeMode.collectAsState()
@@ -210,10 +211,19 @@ fun SettingsScreen(
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
         Button(
+            onClick = onFileBrowserClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp)
+        ) {
+            Text("文件浏览")
+        }
+
+        Button(
             onClick = onCacheBrowserClick,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(horizontal = 16.dp, vertical = 4.dp)
         ) {
             Text("缓存管理")
         }

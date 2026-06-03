@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -39,6 +40,7 @@ import com.rxplayer.app.ui.screens.PlaylistsScreen
 import com.rxplayer.app.ui.screens.HomeScreen
 import com.rxplayer.app.ui.screens.PlayerScreen
 import com.rxplayer.app.ui.screens.CacheBrowserScreen
+import com.rxplayer.app.ui.screens.FileBrowserScreen
 import com.rxplayer.app.ui.screens.SettingsScreen
 import com.rxplayer.app.ui.screens.StreamsScreen
 import com.rxplayer.app.ui.screens.VideoListScreen
@@ -174,11 +176,24 @@ fun RXPlayerNavHost() {
                 SettingsScreen(
                     onCacheBrowserClick = {
                         navController.navigate(Route.CacheBrowser.route)
+                    },
+                    onFileBrowserClick = {
+                        navController.navigate(Route.FileBrowser.route)
                     }
                 )
             }
             composable(Route.CacheBrowser.route) {
                 CacheBrowserScreen(
+                    onBack = { navController.popBackStack() },
+                    onFileBrowserClick = {
+                        navController.navigate(Route.FileBrowser.route)
+                    }
+                )
+            }
+            composable(Route.FileBrowser.route) {
+                val context = LocalContext.current
+                FileBrowserScreen(
+                    startPath = context.cacheDir.absolutePath,
                     onBack = { navController.popBackStack() }
                 )
             }

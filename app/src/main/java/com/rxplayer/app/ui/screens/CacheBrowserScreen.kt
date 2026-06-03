@@ -33,7 +33,6 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -95,35 +94,13 @@ private data class CacheFolder(
 @Composable
 fun CacheBrowserScreen(
     onBack: () -> Unit,
+    onFileBrowserClick: () -> Unit,
     viewModel: CacheBrowserViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     var currentDir by remember { mutableStateOf<CacheFolder?>(null) }
-    var showClearDialog by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<CachedStreamInfo?>(null) }
-    var fileBrowserPath by remember { mutableStateOf<String?>(null) }
     val cachedStreams by viewModel.cachedStreams.collectAsState()
-
-    if (showClearDialog) {
-        AlertDialog(
-            onDismissRequest = { showClearDialog = false },
-            title = { Text("清空缓存") },
-            text = { Text("确定要删除所有缓存文件吗？此操作不可恢复。") },
-            confirmButton = {
-                TextButton(onClick = {
-                    clearCache(context.cacheDir)
-                    showClearDialog = false
-                }) {
-                    Text("确定")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showClearDialog = false }) {
-                    Text("取消")
-                }
-            }
-        )
-    }
 
     if (deleteTarget != null) {
         AlertDialog(
@@ -146,12 +123,7 @@ fun CacheBrowserScreen(
         )
     }
 
-    if (fileBrowserPath != null) {
-        FileBrowserScreen(
-            startPath = fileBrowserPath!!,
-            onBack = { fileBrowserPath = null }
-        )
-    } else if (currentDir != null) {
+    if (currentDir != null) {
         CacheFolderScreen(
             folder = currentDir!!,
             onBack = { currentDir = null }
@@ -159,18 +131,15 @@ fun CacheBrowserScreen(
     } else {
         CacheRootScreen(
             cachedStreams = cachedStreams,
-            onClearClick = { showClearDialog = true },
             onFolderClick = { currentDir = it },
             onDeleteCachedStream = { deleteTarget = it },
-            onFileBrowserClick = {
-                fileBrowserPath = context.cacheDir.absolutePath
-            }
+            onFileBrowserClick = onFileBrowserClick
         )
     }
 }
 
 @Composable
-private fun FileBrowserScreen(
+fun FileBrowserScreen(
     startPath: String,
     onBack: () -> Unit
 ) {
@@ -276,7 +245,6 @@ private fun FileBrowserFolderRow(
 @Composable
 private fun CacheRootScreen(
     cachedStreams: List<CachedStreamInfo>,
-    onClearClick: () -> Unit,
     onFolderClick: (CacheFolder) -> Unit,
     onDeleteCachedStream: (CachedStreamInfo) -> Unit,
     onFileBrowserClick: () -> Unit
@@ -357,20 +325,6 @@ private fun CacheRootScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            item {
-                Button(
-                    onClick = onClearClick,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                    )
-                ) {
-                    Text("清空所有缓存")
-                }
-            }
-
             item {
                 Button(
                     onClick = onFileBrowserClick,
@@ -917,28 +871,6 @@ private fun loadFolderEntries(dirPath: String): List<CacheEntry> {
             category = "",
             isDirectory = false
         )
-    }
-}
-
-private fun clearCache(cacheDir: File) {
-    File(cacheDir, "video_thumbnails").let { dir ->
-        if (dir.exists()) dir.listFiles()?.forEach { it.delete() }
-    }
-    File(cacheDir, "stream_cache").let { dir ->
-        if (dir.exists()) dir.listFiles()?.forEach { it.delete() }
-    }
-    File(cacheDir, "scene_thumbnails").let { dir ->
-        if (dir.exists()) {
-            dir.listFiles()?.forEach { sub ->
-                if (sub.isDirectory) sub.listFiles()?.forEach { it.delete() }
-                sub.delete()
-            }
-        }
-    }
-    File(cacheDir, "exoplayer_cache").let { dir ->
-        if (dir.exists()) {
-            dir.listFiles()?.forEach { it.deleteRecursively() }
-        }
     }
 }
 
