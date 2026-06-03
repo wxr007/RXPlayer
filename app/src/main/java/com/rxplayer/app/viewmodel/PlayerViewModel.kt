@@ -22,6 +22,7 @@ import com.rxplayer.app.media.SceneData
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -81,6 +82,8 @@ class PlayerViewModel @Inject constructor(
     private val _isCached = MutableStateFlow(false)
     val isCached: StateFlow<Boolean> = _isCached
 
+    private var pollJob: kotlinx.coroutines.Job? = null
+
     private val downloadListener = object : DownloadManager.Listener {
         override fun onDownloadChanged(
             downloadManager: DownloadManager,
@@ -125,7 +128,36 @@ class PlayerViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
+        pollJob?.cancel()
         downloadManager.removeListener(downloadListener)
+    }
+
+    private fun pollDownloadProgress() {
+        pollJob?.cancel()
+        pollJob = viewModelScope.launch {
+            while (true) {
+                val download = withContext(Dispatchers.IO) {
+                    downloadManager.getDownloadIndex().getDownload(streamId.toString())
+                }
+                if (download != null) {
+                    when (download.state) {
+                        Download.STATE_DOWNLOADING -> {
+                            _cacheProgress.value = download.percentDownloaded.toInt()
+                        }
+                        Download.STATE_COMPLETED -> {
+                            _cacheProgress.value = -1
+                            _isCached.value = true
+                            return@launch
+                        }
+                        Download.STATE_FAILED -> {
+                            _cacheProgress.value = -1
+                            return@launch
+                        }
+                    }
+                }
+                delay(500)
+            }
+        }
     }
 
     private fun checkCached() {
@@ -142,7 +174,14 @@ class PlayerViewModel @Inject constructor(
             val download = withContext(Dispatchers.IO) {
                 downloadManager.getDownloadIndex().getDownload(streamId.toString())
             }
-            _isCached.value = download != null && download.state == Download.STATE_COMPLETED
+            if (download != null) {
+                when (download.state) {
+                    Download.STATE_COMPLETED -> _isCached.value = true
+                    Download.STATE_DOWNLOADING -> {
+                        _cacheProgress.value = download.percentDownloaded.toInt()
+                    }
+                }
+            }
         }
     }
 
@@ -165,12 +204,14 @@ class PlayerViewModel @Inject constructor(
             }
             if (existing != null && existing.state == Download.STATE_DOWNLOADING) {
                 _cacheProgress.value = existing.percentDownloaded.toInt()
+                pollDownloadProgress()
                 return@launch
             }
 
             val request = DownloadRequest.Builder(streamId.toString(), Uri.parse(entity.url)).build()
             downloadManager.addDownload(request)
             _cacheProgress.value = 0
+            pollDownloadProgress()
         }
     }
 
