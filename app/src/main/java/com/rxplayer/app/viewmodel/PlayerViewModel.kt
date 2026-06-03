@@ -191,7 +191,7 @@ class PlayerViewModel @Inject constructor(
                         if (download != null) {
                             when (download.state) {
                                 Download.STATE_COMPLETED -> { _isCached.value = true; return@launch }
-                                Download.STATE_DOWNLOADING -> { _cacheProgress.value = download.percentDownloaded.toInt(); return@launch }
+                                Download.STATE_DOWNLOADING -> { _cacheProgress.value = download.percentDownloaded.toInt(); pollDownloadProgress(); return@launch }
                             }
                         }
                     } else if (File(entity.cachedPath).exists()) {
@@ -206,6 +206,7 @@ class PlayerViewModel @Inject constructor(
                     Download.STATE_COMPLETED -> _isCached.value = true
                     Download.STATE_DOWNLOADING -> {
                         _cacheProgress.value = download.percentDownloaded.toInt()
+                        pollDownloadProgress()
                     }
                 }
             }
