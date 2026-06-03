@@ -57,7 +57,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -196,7 +198,7 @@ private fun CacheRootScreen(
     }
 
     val streamFolder = remember {
-        val dir = File(context.cacheDir, "stream_cache")
+        val dir = File(context.getExternalCacheDir() ?: context.cacheDir, "stream_cache")
         val files = dir.listFiles() ?: emptyArray()
         CacheFolder(
             name = "stream_cache",
@@ -266,6 +268,33 @@ private fun CacheRootScreen(
                     CachedStreamRow(
                         stream = stream,
                         onDelete = { onDeleteCachedStream(stream) }
+                    )
+                }
+            }
+
+            item {
+                val path = context.getExternalCacheDir()?.let {
+                    File(it, "stream_cache").absolutePath
+                } ?: File(context.cacheDir, "stream_cache").absolutePath
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Folder,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = path,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }

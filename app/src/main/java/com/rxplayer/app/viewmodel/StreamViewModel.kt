@@ -153,7 +153,7 @@ class StreamViewModel @Inject constructor(
         streamId: Long,
         onProgress: (Int) -> Unit
     ): String {
-        val cacheDir = File(context.cacheDir, "stream_cache")
+        val cacheDir = File(context.getExternalCacheDir() ?: context.cacheDir, "stream_cache")
         cacheDir.mkdirs()
 
         val safeName = stream.name.replace(Regex("[\\\\/:*?\"<>|]"), "_").take(50)
