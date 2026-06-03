@@ -198,8 +198,13 @@ fun PlayerScreen(
     val folderVideos by viewModel.folderVideos.collectAsState()
 
     LaunchedEffect(Unit) {
+        val mediaUri = if (videoPath.startsWith("/") || videoPath.startsWith("file://")) {
+            Uri.fromFile(File(videoPath))
+        } else {
+            Uri.parse(videoPath)
+        }
         // Immediately prepare single video so user sees content right away
-        player.setMediaItem(MediaItem.fromUri(Uri.parse(videoPath)))
+        player.setMediaItem(MediaItem.fromUri(mediaUri))
         player.repeatMode = when (playbackMode) {
             1 -> ExoPlayer.REPEAT_MODE_ONE
             3 -> ExoPlayer.REPEAT_MODE_ALL
@@ -212,7 +217,14 @@ fun PlayerScreen(
         // rebuild that causes brief black screen on setMediaItems().
         if (playbackMode >= 2) {
             val list = snapshotFlow { folderVideos }.firstOrNull { it.isNotEmpty() } ?: return@LaunchedEffect
-            val mediaItems = list.map { MediaItem.fromUri(Uri.parse(it.filePath)) }
+            val mediaItems = list.map {
+                val u = if (it.filePath.startsWith("/") || it.filePath.startsWith("file://")) {
+                    Uri.fromFile(File(it.filePath))
+                } else {
+                    Uri.parse(it.filePath)
+                }
+                MediaItem.fromUri(u)
+            }
             val startIndex = list.indexOfFirst { it.filePath == videoPath }.coerceAtLeast(0)
             val before = mediaItems.subList(0, startIndex)
             val after = mediaItems.subList(startIndex + 1, mediaItems.size)
