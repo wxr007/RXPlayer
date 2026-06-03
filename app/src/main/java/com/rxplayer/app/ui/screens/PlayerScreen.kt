@@ -123,6 +123,7 @@ fun PlayerScreen(
     videoPath: String,
     autoFullscreen: Boolean = false,
     playbackMode: Int = 0,
+    privacyMaskEnabled: Boolean = false,
     folderPath: String = "",
     playlistId: Long = 0,
     streamId: Long = 0,
@@ -145,7 +146,6 @@ fun PlayerScreen(
     var overlayTimerKey by remember { mutableStateOf(0) }
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
     var showAnalysisDialog by remember { mutableStateOf(false) }
-    val privacyMaskEnabled by viewModel.privacyMask.collectAsState()
     var videoResolution by remember { mutableStateOf("") }
     var videoCodec by remember { mutableStateOf("") }
     var videoFrameRate by remember { mutableStateOf("") }

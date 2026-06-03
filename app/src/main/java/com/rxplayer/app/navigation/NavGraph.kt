@@ -124,8 +124,8 @@ fun RXPlayerNavHost() {
                 val folderPath = Route.VideoList.decodePath(backStackEntry.arguments?.getString("folderPath") ?: "")
                 VideoListScreen(
                     folderPath = folderPath,
-                    onVideoClick = { videoPath, autoFullscreen, playbackMode ->
-                        navController.navigate(Route.Player.createRoute(videoPath, if (autoFullscreen) 1 else 0, playbackMode, folderPath))
+                    onVideoClick = { videoPath, autoFullscreen, playbackMode, privacyMask ->
+                        navController.navigate(Route.Player.createRoute(videoPath, if (autoFullscreen) 1 else 0, playbackMode, if (privacyMask) 1 else 0, folderPath))
                     },
                     onBack = { navController.popBackStack() }
                 )
@@ -158,8 +158,8 @@ fun RXPlayerNavHost() {
                 PlaylistDetailScreen(
                     playlistId = playlistId,
                     playlistName = playlistName,
-                    onVideoClick = { videoPath, autoFullscreen, playbackMode ->
-                        navController.navigate(Route.Player.createRoute(videoPath, if (autoFullscreen) 1 else 0, playbackMode, playlistId = playlistId))
+                    onVideoClick = { videoPath, autoFullscreen, playbackMode, privacyMask ->
+                        navController.navigate(Route.Player.createRoute(videoPath, if (autoFullscreen) 1 else 0, playbackMode, if (privacyMask) 1 else 0, playlistId = playlistId))
                     },
                     onBack = { navController.popBackStack() }
                 )
@@ -191,6 +191,7 @@ fun RXPlayerNavHost() {
                     navArgument("videoPath") { type = NavType.StringType },
                     navArgument("autoFullscreen") { type = NavType.IntType; defaultValue = 0 },
                     navArgument("playbackMode") { type = NavType.IntType; defaultValue = 0 },
+                    navArgument("privacyMask") { type = NavType.IntType; defaultValue = 0 },
                     navArgument("folderPath") { type = NavType.StringType; defaultValue = "" },
                     navArgument("playlistId") { type = NavType.LongType; defaultValue = 0L },
                     navArgument("streamId") { type = NavType.LongType; defaultValue = 0L },
@@ -200,6 +201,7 @@ fun RXPlayerNavHost() {
                 val videoPath = Route.Player.decodePath(backStackEntry.arguments?.getString("videoPath") ?: "")
                 val autoFullscreen = backStackEntry.arguments?.getInt("autoFullscreen") ?: 0
                 val playbackMode = backStackEntry.arguments?.getInt("playbackMode") ?: 0
+                val privacyMask = backStackEntry.arguments?.getInt("privacyMask") ?: 0
                 val folderPath = Route.Player.decodeFolderPath(backStackEntry.arguments?.getString("folderPath") ?: "")
                 val playlistId = backStackEntry.arguments?.getLong("playlistId") ?: 0L
                 val streamId = backStackEntry.arguments?.getLong("streamId") ?: 0L
@@ -208,6 +210,7 @@ fun RXPlayerNavHost() {
                     videoPath = videoPath,
                     autoFullscreen = autoFullscreen == 1,
                     playbackMode = playbackMode,
+                    privacyMaskEnabled = privacyMask == 1,
                     folderPath = folderPath,
                     playlistId = playlistId,
                     streamId = streamId,

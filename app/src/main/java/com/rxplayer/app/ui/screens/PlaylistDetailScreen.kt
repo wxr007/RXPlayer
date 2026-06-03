@@ -42,7 +42,7 @@ import com.rxplayer.app.viewmodel.PlaylistViewModel
 fun PlaylistDetailScreen(
     playlistId: Long,
     playlistName: String,
-    onVideoClick: (videoPath: String, autoFullscreen: Boolean, playbackMode: Int) -> Unit,
+    onVideoClick: (videoPath: String, autoFullscreen: Boolean, playbackMode: Int, privacyMaskEnabled: Boolean) -> Unit,
     onBack: () -> Unit,
     viewModel: PlaylistViewModel = hiltViewModel()
 ) {
@@ -55,8 +55,8 @@ fun PlaylistDetailScreen(
     val autoFullscreen by viewModel.autoFullscreen.collectAsState()
     val playbackMode by viewModel.playbackMode.collectAsState()
     val resolutionDisplay by viewModel.resolutionDisplay.collectAsState()
-    val privacyMaskEnabled by viewModel.privacyMask.collectAsState()
     var removeTarget by remember { mutableStateOf<Video?>(null) }
+    var privacyMaskEnabled by remember { mutableStateOf(false) }
     var showLayoutDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(playlistId) {
@@ -113,7 +113,7 @@ fun PlaylistDetailScreen(
                 title = playlistName,
                 onBack = onBack,
                 actions = {
-                    IconButton(onClick = { viewModel.togglePrivacyMask() }) {
+                    IconButton(onClick = { privacyMaskEnabled = !privacyMaskEnabled }) {
                         Icon(
                             imageVector = if (privacyMaskEnabled) Icons.Default.VisibilityOff
                                 else Icons.Default.Visibility,
@@ -160,7 +160,7 @@ fun PlaylistDetailScreen(
                         portrait = portrait,
                         privacyMaskEnabled = privacyMaskEnabled,
                         resolutionDisplay = resolutionDisplay,
-                        onClick = { onVideoClick(video.filePath, autoFullscreen, playbackMode) },
+                        onClick = { onVideoClick(video.filePath, autoFullscreen, playbackMode, privacyMaskEnabled) },
                         onRemoveFromPlaylistClick = { removeTarget = video }
                     )
                 }

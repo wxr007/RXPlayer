@@ -51,7 +51,6 @@ class VideoListViewModel @Inject constructor(
     val playbackMode: StateFlow<Int> = _playbackMode
 
     val resolutionDisplay: StateFlow<String> = settingsManager.resolutionDisplay
-    val privacyMask: StateFlow<Boolean> = settingsManager.privacyMask
 
     private val _playlists = MutableStateFlow<List<PlaylistEntity>>(emptyList())
     val playlists: StateFlow<List<PlaylistEntity>> = _playlists
@@ -273,9 +272,5 @@ class VideoListViewModel @Inject constructor(
                 )
             }
         }
-    }
-
-    fun togglePrivacyMask() {
-        settingsManager.setPrivacyMask(!settingsManager.privacyMask.value)
     }
 }

@@ -80,7 +80,7 @@ import com.rxplayer.app.viewmodel.VideoListViewModel
 @Composable
 fun VideoListScreen(
     folderPath: String,
-    onVideoClick: (String, Boolean, Int) -> Unit,
+    onVideoClick: (String, Boolean, Int, Boolean) -> Unit,
     onBack: () -> Unit,
     viewModel: VideoListViewModel = hiltViewModel()
 ) {
@@ -99,9 +99,9 @@ fun VideoListScreen(
     val autoFullscreen by viewModel.autoFullscreen.collectAsState()
     val playbackMode by viewModel.playbackMode.collectAsState()
     val resolutionDisplay by viewModel.resolutionDisplay.collectAsState()
-    val privacyMaskEnabled by viewModel.privacyMask.collectAsState()
     val playlists by viewModel.playlists.collectAsState()
     var showLayoutDialog by remember { mutableStateOf(false) }
+    var privacyMaskEnabled by remember { mutableStateOf(false) }
     var showAddToPlaylistDialog by remember { mutableStateOf(false) }
     var selectedVideoForPlaylist by remember { mutableStateOf<Video?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -168,7 +168,7 @@ fun VideoListScreen(
                 title = folderName,
                 onBack = onBack,
                 actions = {
-                    IconButton(onClick = { viewModel.togglePrivacyMask() }) {
+                    IconButton(onClick = { privacyMaskEnabled = !privacyMaskEnabled }) {
                         Icon(
                             imageVector = if (privacyMaskEnabled) Icons.Default.VisibilityOff
                                 else Icons.Default.Visibility,
@@ -239,7 +239,7 @@ fun VideoListScreen(
                         portrait = portrait,
                         privacyMaskEnabled = privacyMaskEnabled,
                         resolutionDisplay = resolutionDisplay,
-                        onClick = { onVideoClick(video.filePath, autoFullscreen, playbackMode) },
+                        onClick = { onVideoClick(video.filePath, autoFullscreen, playbackMode, privacyMaskEnabled) },
                         onAddToPlaylistClick = {
                             selectedVideoForPlaylist = video
                             showAddToPlaylistDialog = true

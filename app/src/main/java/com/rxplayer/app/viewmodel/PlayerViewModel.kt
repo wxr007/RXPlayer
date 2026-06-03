@@ -75,7 +75,6 @@ class PlayerViewModel @Inject constructor(
     val analysisMode: StateFlow<String> = settingsManager.analysisMode
     val analysisInterval: StateFlow<Int> = settingsManager.analysisInterval
     val seekStep: StateFlow<Int> = settingsManager.seekStep
-    val privacyMask: StateFlow<Boolean> = settingsManager.privacyMask
 
     private val _cacheProgress = MutableStateFlow(-1)
     val cacheProgress: StateFlow<Int> = _cacheProgress
