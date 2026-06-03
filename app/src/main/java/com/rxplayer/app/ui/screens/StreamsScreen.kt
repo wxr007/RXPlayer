@@ -18,11 +18,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material3.AlertDialog
@@ -36,8 +34,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -46,7 +42,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -76,20 +71,9 @@ fun StreamsScreen(
     val streams by viewModel.streams.collectAsState()
     val cachingIds by viewModel.cachingIds.collectAsState()
     val cachingProgress by viewModel.cachingProgress.collectAsState()
-    val cacheError by viewModel.cacheError.collectAsState()
-    val dmCompletedIds by viewModel.dmCompletedIds.collectAsState()
-    val scope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
     var showAddDialog by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<StreamItem?>(null) }
     var renameTarget by remember { mutableStateOf<StreamItem?>(null) }
-
-    LaunchedEffect(cacheError) {
-        cacheError?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearCacheError()
-        }
-    }
 
     if (showAddDialog) {
         AddStreamDialog(
@@ -168,8 +152,7 @@ fun StreamsScreen(
                     }
                 }
             )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        }
     ) { innerPadding ->
         if (streams.isEmpty()) {
             Box(
@@ -196,19 +179,12 @@ fun StreamsScreen(
                     .padding(innerPadding)
             ) {
                 items(streams, key = { it.id }) { stream ->
-                    val dmDone = stream.id in dmCompletedIds
                     StreamCard(
                         stream = stream,
                         isCaching = stream.id in cachingIds,
                         cacheProgress = cachingProgress[stream.id] ?: 0,
-                        dmCompleted = dmDone,
                         onClick = {
-                            val playPath = if (stream.cachedPath.startsWith("dl:")) {
-                                stream.url
-                            } else if (stream.cachedPath.isNotEmpty() && stream.cachedPath.toLongOrNull() == null) {
-                                val ext = stream.cachedPath.substringAfterLast(".").lowercase()
-                                if (ext in setOf("m3u8", "mpd")) stream.url else stream.cachedPath
-                            } else stream.url
+                            val playPath = if (stream.cachedPath.isNotEmpty() && stream.cachedPath.toLongOrNull() == null) stream.cachedPath else stream.url
                             onStreamClick(playPath, stream.id, stream.name)
                         },
                         onLongClick = { deleteTarget = stream },
@@ -227,7 +203,6 @@ private fun StreamCard(
     stream: StreamItem,
     isCaching: Boolean,
     cacheProgress: Int,
-    dmCompleted: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onCacheClick: () -> Unit,
@@ -246,8 +221,7 @@ private fun StreamCard(
         }
     }
 
-    val isDmPath = stream.cachedPath.startsWith("dl:")
-    val isCached = if (isDmPath) dmCompleted else stream.cachedPath.isNotEmpty()
+    val isCached = stream.cachedPath.isNotEmpty()
 
     Card(
         modifier = Modifier
@@ -288,24 +262,6 @@ private fun StreamCard(
                                 text = "$cacheProgress%",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    } else if (!isCached) {
-                        IconButton(
-                            onClick = onCacheClick,
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(4.dp)
-                                .background(
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                                    RoundedCornerShape(4.dp)
-                                )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Download,
-                                contentDescription = "缓存到本地",
-                                tint = Color.White,
-                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }

@@ -7,15 +7,15 @@ import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
-import androidx.media3.exoplayer.offline.DefaultDownloadIndex
-import androidx.media3.exoplayer.offline.DefaultDownloaderFactory
 import androidx.media3.exoplayer.offline.DownloadManager
+import androidx.media3.exoplayer.scheduler.Requirements
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import java.io.File
+import java.util.concurrent.Executors
 import javax.inject.Singleton
 
 @Module
@@ -65,11 +65,12 @@ object CacheModule {
         cache: SimpleCache,
         upstreamFactory: DataSource.Factory
     ): DownloadManager {
-        val downloadIndex = DefaultDownloadIndex(databaseProvider, "downloads")
-        val downloadCacheFactory = CacheDataSource.Factory()
-            .setCache(cache)
-            .setUpstreamDataSourceFactory(upstreamFactory)
-        val downloaderFactory = DefaultDownloaderFactory(downloadCacheFactory)
-        return DownloadManager(context, downloadIndex, downloaderFactory)
+        return DownloadManager(
+            context, databaseProvider, cache, upstreamFactory,
+            Executors.newSingleThreadExecutor()
+        ).also {
+            it.setRequirements(Requirements(Requirements.NETWORK))
+            it.resumeDownloads()
+        }
     }
 }

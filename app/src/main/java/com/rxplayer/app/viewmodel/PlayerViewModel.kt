@@ -97,11 +97,7 @@ class PlayerViewModel @Inject constructor(
                 Uri.fromFile(File(fallbackPath)) else Uri.parse(fallbackPath)
 
         if (entity.cachedPath.isNotEmpty()) {
-            if (entity.cachedPath.startsWith("dl:")) {
-                return Uri.parse(entity.url)
-            }
-            val ext = entity.cachedPath.substringAfterLast(".").lowercase()
-            if (ext in setOf("m3u8", "mpd")) {
+            if (entity.cachedPath.toLongOrNull() != null) {
                 return Uri.parse(entity.url)
             }
             val f = File(entity.cachedPath)
@@ -110,6 +106,34 @@ class PlayerViewModel @Inject constructor(
             }
         }
         return Uri.parse(entity.url)
+    }
+
+    private var pollJob: kotlinx.coroutines.Job? = null
+
+    private val downloadListener = object : DownloadManager.Listener {
+        override fun onDownloadChanged(
+            downloadManager: DownloadManager,
+            download: Download,
+            finalException: Exception?
+        ) {
+            if (download.request.id != streamId.toString()) return
+            when (download.state) {
+                Download.STATE_DOWNLOADING -> {
+                    _cacheProgress.value = download.percentDownloaded.toInt()
+                }
+                Download.STATE_COMPLETED -> {
+                    onDownloadCompleted()
+                }
+                Download.STATE_FAILED -> {
+                    _cacheProgress.value = -1
+                    Log.e("RXPlayer", "Download failed for stream $streamId", finalException)
+                }
+                Download.STATE_REMOVING -> {
+                    _cacheProgress.value = -1
+                    _isCached.value = false
+                }
+            }
+        }
     }
 
     init {
@@ -124,9 +148,16 @@ class PlayerViewModel @Inject constructor(
         } else if (playlistId > 0) {
             loadPlaylistVideos()
         }
+        downloadManager.addListener(downloadListener)
     }
 
-    private fun getDmDownload(): Download? {
+    override fun onCleared() {
+        super.onCleared()
+        pollJob?.cancel()
+        downloadManager.removeListener(downloadListener)
+    }
+
+    private fun queryDownload(): Download? {
         return try {
             downloadManager.getDownloadIndex().getDownload(streamId.toString())
         } catch (_: Exception) {
@@ -134,45 +165,43 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    private fun isDmCompleted(): Boolean {
-        val dl = getDmDownload()
-        return dl != null && dl.state == Download.STATE_COMPLETED
+    private fun onDownloadCompleted() {
+        _cacheProgress.value = -1
+        _isCached.value = true
+        viewModelScope.launch {
+            val entity = withContext(Dispatchers.IO) {
+                streamDao.getStreamById(streamId)
+            }
+            if (entity != null && entity.cachedPath.isEmpty()) {
+                withContext(Dispatchers.IO) {
+                    streamDao.updateCachedPath(streamId, streamId.toString())
+                }
+            }
+        }
     }
 
-    private suspend fun observeDmProgress() {
-        _cacheProgress.value = 0
-        try {
+    private fun pollDownloadProgress() {
+        pollJob?.cancel()
+        pollJob = viewModelScope.launch {
             while (true) {
-                val dl = withContext(Dispatchers.IO) { getDmDownload() }
-                if (dl == null) { delay(500); continue }
-                when (dl.state) {
-                    Download.STATE_COMPLETED -> {
-                        _cacheProgress.value = 100
-                        _isCached.value = true
-                        return
-                    }
-                    Download.STATE_FAILED -> {
-                        throw Exception("下载失败: ${failureReasonString(dl.failureReason)}")
-                    }
-                    Download.STATE_REMOVING -> {
-                        throw Exception("下载被取消")
-                    }
-                    else -> {
-                        val pct = dl.percentDownloaded.toInt()
-                        if (pct > 0 && _cacheProgress.value >= 0) {
-                            _cacheProgress.value = pct
+                val download = queryDownload()
+                if (download != null) {
+                    when (download.state) {
+                        Download.STATE_DOWNLOADING -> {
+                            _cacheProgress.value = download.percentDownloaded.toInt()
+                        }
+                        Download.STATE_COMPLETED -> {
+                            onDownloadCompleted()
+                            return@launch
+                        }
+                        Download.STATE_FAILED -> {
+                            _cacheProgress.value = -1
+                            return@launch
                         }
                     }
                 }
-                delay(1000)
+                delay(500)
             }
-        } catch (e: Exception) {
-            Log.e("RXPlayer", "Download progress failed for $streamId", e)
-            downloadManager.removeDownload(streamId.toString())
-            withContext(Dispatchers.IO) {
-                streamDao.updateCachedPath(streamId, "")
-            }
-            _cacheError.value = e.message ?: "下载失败"
         }
     }
 
@@ -181,109 +210,84 @@ class PlayerViewModel @Inject constructor(
             val entity = withContext(Dispatchers.IO) {
                 streamDao.getStreamById(streamId)
             }
-            if (entity != null && entity.cachedPath.isNotEmpty()) {
-                if (entity.cachedPath.startsWith("dl:")) {
-                    if (isDmCompleted()) {
+            if (entity != null) {
+                if (entity.cachedPath.isNotEmpty()) {
+                    if (entity.cachedPath.toLongOrNull() != null) {
+                        val download = queryDownload()
+                        if (download != null) {
+                            when (download.state) {
+                                Download.STATE_COMPLETED -> { _isCached.value = true; return@launch }
+                                Download.STATE_DOWNLOADING -> { _cacheProgress.value = download.percentDownloaded.toInt(); pollDownloadProgress(); return@launch }
+                            }
+                        }
+                    } else if (File(entity.cachedPath).exists()) {
                         _isCached.value = true
-                    } else {
-                        observeDmProgress()
+                        return@launch
                     }
-                    return@launch
                 }
-                val f = File(entity.cachedPath)
-                if (f.exists() && f.length() > 0L) {
-                    _isCached.value = true
-                    return@launch
-                }
-                if (f.exists()) f.delete()
             }
-            if (isDmCompleted()) {
-                _isCached.value = true
+            val download = queryDownload()
+            if (download != null) {
+                when (download.state) {
+                    Download.STATE_COMPLETED -> _isCached.value = true
+                    Download.STATE_DOWNLOADING -> {
+                        _cacheProgress.value = download.percentDownloaded.toInt()
+                        pollDownloadProgress()
+                    }
+                }
             }
         }
     }
 
     fun cacheCurrentStream() {
         if (streamId <= 0L) return
-        if (_cacheProgress.value >= 0) return
         viewModelScope.launch {
             val entity = withContext(Dispatchers.IO) {
                 streamDao.getStreamById(streamId)
             } ?: return@launch
             if (entity.cachedPath.isNotEmpty()) {
-                if (entity.cachedPath.startsWith("dl:")) {
-                    if (isDmCompleted()) {
-                        _isCached.value = true; return@launch
+                if (entity.cachedPath.toLongOrNull() != null) {
+                    val existing = queryDownload()
+                    if (existing != null) {
+                        when (existing.state) {
+                            Download.STATE_COMPLETED -> { _isCached.value = true; return@launch }
+                            Download.STATE_DOWNLOADING -> { _cacheProgress.value = existing.percentDownloaded.toInt(); pollDownloadProgress(); return@launch }
+                        }
                     }
-                    observeDmProgress(); return@launch
+                } else if (File(entity.cachedPath).exists()) {
+                    _isCached.value = true
+                    return@launch
                 }
-                val f = File(entity.cachedPath)
-                if (f.exists() && f.length() > 0L) {
-                    _isCached.value = true; return@launch
-                }
-                if (f.exists()) f.delete()
             }
-            if (isDmCompleted()) {
-                _isCached.value = true; return@launch
+            val existing = queryDownload()
+            if (existing != null && existing.state == Download.STATE_COMPLETED) {
+                _isCached.value = true
+                return@launch
             }
-
-            // Check if a DownloadManager download already exists (in progress)
-            val existingDl = withContext(Dispatchers.IO) { getDmDownload() }
-            if (existingDl != null) {
-                withContext(Dispatchers.IO) {
-                    streamDao.updateCachedPath(streamId, "${CACHE_PREFIX_DM}$streamId")
-                }
-                observeDmProgress()
+            if (existing != null && existing.state == Download.STATE_DOWNLOADING) {
+                _cacheProgress.value = existing.percentDownloaded.toInt()
+                pollDownloadProgress()
                 return@launch
             }
 
-            _cacheProgress.value = 0
+            val request = DownloadRequest.Builder(streamId.toString(), Uri.parse(entity.url)).build()
             try {
-                val request = DownloadRequest.Builder(streamId.toString(), Uri.parse(entity.url))
-                    .build()
                 downloadManager.addDownload(request)
-                withContext(Dispatchers.IO) {
-                    streamDao.updateCachedPath(streamId, "${CACHE_PREFIX_DM}$streamId")
-                }
-                observeDmProgress()
             } catch (e: Exception) {
-                Log.e("RXPlayer", "Download failed for stream $streamId", e)
-                downloadManager.removeDownload(streamId.toString())
-                withContext(Dispatchers.IO) {
-                    streamDao.updateCachedPath(streamId, "")
-                }
-                _cacheError.value = e.message ?: "下载失败"
-            } finally {
-                _cacheProgress.value = -1
+                Log.e("RXPlayer", "addDownload failed for stream $streamId", e)
+                return@launch
             }
+            _cacheProgress.value = 0
+            pollDownloadProgress()
         }
     }
 
     fun removeCachedStream() {
         if (streamId <= 0L) return
         viewModelScope.launch {
-            val entity = withContext(Dispatchers.IO) {
-                streamDao.getStreamById(streamId)
-            }
-            if (entity != null) {
-                if (entity.cachedPath.isNotEmpty() && !entity.cachedPath.startsWith("dl:")) {
-                    val file = File(entity.cachedPath)
-                    if (file.exists()) file.delete()
-                }
-                try {
-                    downloadManager.removeDownload(streamId.toString())
-                } catch (_: Exception) {}
-                withContext(Dispatchers.IO) {
-                    streamDao.updateCachedPath(streamId, "")
-                }
-            }
+            downloadManager.removeDownload(streamId.toString())
             _isCached.value = false
         }
-    }
-
-    private fun failureReasonString(reason: Int): String = when (reason) {
-        Download.FAILURE_REASON_UNKNOWN -> "未知错误"
-        else -> "错误码 $reason"
     }
 
     private val _folderVideos = MutableStateFlow<List<Video>>(emptyList())
