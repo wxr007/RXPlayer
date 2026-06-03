@@ -77,6 +77,7 @@ fun StreamsScreen(
     val cachingIds by viewModel.cachingIds.collectAsState()
     val cachingProgress by viewModel.cachingProgress.collectAsState()
     val cacheError by viewModel.cacheError.collectAsState()
+    val dmCompletedIds by viewModel.dmCompletedIds.collectAsState()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var showAddDialog by remember { mutableStateOf(false) }
@@ -195,10 +196,12 @@ fun StreamsScreen(
                     .padding(innerPadding)
             ) {
                 items(streams, key = { it.id }) { stream ->
+                    val dmDone = stream.id in dmCompletedIds
                     StreamCard(
                         stream = stream,
                         isCaching = stream.id in cachingIds,
                         cacheProgress = cachingProgress[stream.id] ?: 0,
+                        dmCompleted = dmDone,
                         onClick = {
                             val playPath = if (stream.cachedPath.startsWith("dl:")) {
                                 stream.url
@@ -224,6 +227,7 @@ private fun StreamCard(
     stream: StreamItem,
     isCaching: Boolean,
     cacheProgress: Int,
+    dmCompleted: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onCacheClick: () -> Unit,
@@ -242,7 +246,8 @@ private fun StreamCard(
         }
     }
 
-    val isCached = stream.cachedPath.isNotEmpty()
+    val isDmPath = stream.cachedPath.startsWith("dl:")
+    val isCached = if (isDmPath) dmCompleted else stream.cachedPath.isNotEmpty()
 
     Card(
         modifier = Modifier

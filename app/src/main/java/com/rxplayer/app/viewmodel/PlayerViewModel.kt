@@ -126,12 +126,53 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    private fun checkDownloadManagerCached(): Boolean {
+    private fun getDmDownload(): Download? {
         return try {
-            val download = downloadManager.getDownloadIndex().getDownload(streamId.toString())
-            download != null && download.state == Download.STATE_COMPLETED
+            downloadManager.getDownloadIndex().getDownload(streamId.toString())
         } catch (_: Exception) {
-            false
+            null
+        }
+    }
+
+    private fun isDmCompleted(): Boolean {
+        val dl = getDmDownload()
+        return dl != null && dl.state == Download.STATE_COMPLETED
+    }
+
+    private suspend fun observeDmProgress() {
+        _cacheProgress.value = 0
+        try {
+            while (true) {
+                val dl = withContext(Dispatchers.IO) { getDmDownload() }
+                if (dl == null) { delay(500); continue }
+                when (dl.state) {
+                    Download.STATE_COMPLETED -> {
+                        _cacheProgress.value = 100
+                        _isCached.value = true
+                        return
+                    }
+                    Download.STATE_FAILED -> {
+                        throw Exception("下载失败: ${failureReasonString(dl.failureReason)}")
+                    }
+                    Download.STATE_REMOVING -> {
+                        throw Exception("下载被取消")
+                    }
+                    else -> {
+                        val pct = dl.percentDownloaded.toInt()
+                        if (pct > 0 && _cacheProgress.value >= 0) {
+                            _cacheProgress.value = pct
+                        }
+                    }
+                }
+                delay(1000)
+            }
+        } catch (e: Exception) {
+            Log.e("RXPlayer", "Download progress failed for $streamId", e)
+            downloadManager.removeDownload(streamId.toString())
+            withContext(Dispatchers.IO) {
+                streamDao.updateCachedPath(streamId, "")
+            }
+            _cacheError.value = e.message ?: "下载失败"
         }
     }
 
@@ -142,8 +183,10 @@ class PlayerViewModel @Inject constructor(
             }
             if (entity != null && entity.cachedPath.isNotEmpty()) {
                 if (entity.cachedPath.startsWith("dl:")) {
-                    if (checkDownloadManagerCached()) {
+                    if (isDmCompleted()) {
                         _isCached.value = true
+                    } else {
+                        observeDmProgress()
                     }
                     return@launch
                 }
@@ -154,7 +197,7 @@ class PlayerViewModel @Inject constructor(
                 }
                 if (f.exists()) f.delete()
             }
-            if (checkDownloadManagerCached()) {
+            if (isDmCompleted()) {
                 _isCached.value = true
             }
         }
@@ -169,19 +212,29 @@ class PlayerViewModel @Inject constructor(
             } ?: return@launch
             if (entity.cachedPath.isNotEmpty()) {
                 if (entity.cachedPath.startsWith("dl:")) {
-                    if (checkDownloadManagerCached()) {
+                    if (isDmCompleted()) {
                         _isCached.value = true; return@launch
                     }
-                } else {
-                    val f = File(entity.cachedPath)
-                    if (f.exists() && f.length() > 0L) {
-                        _isCached.value = true; return@launch
-                    }
-                    if (f.exists()) f.delete()
+                    observeDmProgress(); return@launch
                 }
+                val f = File(entity.cachedPath)
+                if (f.exists() && f.length() > 0L) {
+                    _isCached.value = true; return@launch
+                }
+                if (f.exists()) f.delete()
             }
-            if (checkDownloadManagerCached()) {
+            if (isDmCompleted()) {
                 _isCached.value = true; return@launch
+            }
+
+            // Check if a DownloadManager download already exists (in progress)
+            val existingDl = withContext(Dispatchers.IO) { getDmDownload() }
+            if (existingDl != null) {
+                withContext(Dispatchers.IO) {
+                    streamDao.updateCachedPath(streamId, "${CACHE_PREFIX_DM}$streamId")
+                }
+                observeDmProgress()
+                return@launch
             }
 
             _cacheProgress.value = 0
@@ -192,33 +245,7 @@ class PlayerViewModel @Inject constructor(
                 withContext(Dispatchers.IO) {
                     streamDao.updateCachedPath(streamId, "${CACHE_PREFIX_DM}$streamId")
                 }
-
-                while (true) {
-                    val dl = withContext(Dispatchers.IO) {
-                        downloadManager.getDownloadIndex().getDownload(streamId.toString())
-                    }
-                    if (dl == null) { delay(500); continue }
-                    when (dl.state) {
-                        Download.STATE_COMPLETED -> {
-                            _cacheProgress.value = 100
-                            _isCached.value = true
-                            break
-                        }
-                        Download.STATE_FAILED -> {
-                            throw Exception("下载失败: ${failureReasonString(dl.failureReason)}")
-                        }
-                        Download.STATE_REMOVING -> {
-                            throw Exception("下载被取消")
-                        }
-                        else -> {
-                            val pct = dl.percentDownloaded.toInt()
-                            if (pct > 0 && _cacheProgress.value >= 0) {
-                                _cacheProgress.value = pct
-                            }
-                        }
-                    }
-                    delay(1000)
-                }
+                observeDmProgress()
             } catch (e: Exception) {
                 Log.e("RXPlayer", "Download failed for stream $streamId", e)
                 downloadManager.removeDownload(streamId.toString())
