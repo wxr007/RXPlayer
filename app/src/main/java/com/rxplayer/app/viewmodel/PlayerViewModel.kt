@@ -268,6 +268,21 @@ class PlayerViewModel @Inject constructor(
             file.delete()
             throw IOException("下载文件太小 (${file.length()} bytes)，可能不是有效的视频内容")
         }
+
+        val header = file.inputStream().use { input ->
+            val bytes = ByteArray(512)
+            val n = input.read(bytes)
+            if (n > 0) String(bytes, 0, n, Charsets.UTF_8) else ""
+        }
+        val headerTrimmed = header.trim().lowercase()
+        if (headerTrimmed.startsWith("<!doctype") || headerTrimmed.startsWith("<html") ||
+            headerTrimmed.startsWith("<head") || headerTrimmed.startsWith("<?xml") ||
+            headerTrimmed.startsWith("{") || headerTrimmed.startsWith("[")
+        ) {
+            file.delete()
+            throw IOException("下载内容不是视频文件 (HTML/JSON)，请检查串流地址是否正确")
+        }
+
         return file.absolutePath
     }
 
