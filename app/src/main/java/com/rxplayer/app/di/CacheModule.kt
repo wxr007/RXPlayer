@@ -3,6 +3,7 @@ package com.rxplayer.app.di
 import android.content.Context
 import androidx.media3.database.ExoDatabaseProvider
 import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
@@ -58,7 +59,7 @@ object CacheModule {
         databaseProvider: ExoDatabaseProvider,
         cache: SimpleCache
     ): DownloadManager {
-        val upstreamFactory = DefaultDataSource.Factory(context)
+        val upstreamFactory = DefaultHttpDataSource.Factory()
         return DownloadManager(
             context, databaseProvider, cache, upstreamFactory,
             Executors.newSingleThreadExecutor()

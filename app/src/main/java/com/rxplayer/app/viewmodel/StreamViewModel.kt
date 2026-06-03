@@ -1,6 +1,7 @@
 package com.rxplayer.app.viewmodel
 
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.exoplayer.offline.Download
@@ -142,7 +143,9 @@ class StreamViewModel @Inject constructor(
             val request = DownloadRequest.Builder(streamId.toString(), Uri.parse(stream.url)).build()
             try {
                 downloadManager.addDownload(request)
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                Log.e("RXPlayer", "StreamViewModel addDownload failed for $streamId", e)
+            }
             _cachingIds.value = _cachingIds.value + streamId
         }
     }

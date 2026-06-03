@@ -247,7 +247,8 @@ class PlayerViewModel @Inject constructor(
             val request = DownloadRequest.Builder(streamId.toString(), Uri.parse(entity.url)).build()
             try {
                 downloadManager.addDownload(request)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.e("RXPlayer", "addDownload failed for stream $streamId", e)
                 return@launch
             }
             _cacheProgress.value = 0
