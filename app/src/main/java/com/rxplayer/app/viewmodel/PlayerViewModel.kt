@@ -26,6 +26,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import javax.inject.Inject
@@ -191,15 +192,22 @@ class PlayerViewModel @Inject constructor(
         cacheDir.mkdirs()
 
         val safeName = name.replace(Regex("[\\\\/:*?\"<>|]"), "_").take(50)
-        val rawExt = url.substringAfterLast(".").substringBefore("?").substringBefore("#").take(8)
+        val urlPath = URL(url).path
+        val rawExt = urlPath.substringAfterLast(".").substringBefore("?").substringBefore("#").take(8)
         val ext = rawExt.ifBlank { "mp4" }
         val file = File(cacheDir, "${streamId}_${safeName}.${ext}")
 
         val conn = URL(url).openConnection() as HttpURLConnection
+        conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Android 14; Mobile; rv:120.0)")
         conn.connectTimeout = 15000
         conn.readTimeout = 30000
+        conn.instanceFollowRedirects = true
         conn.connect()
 
+        val responseCode = conn.responseCode
+        if (responseCode != HttpURLConnection.HTTP_OK) {
+            throw IOException("Server returned $responseCode for $url")
+        }
         val contentLength = conn.contentLengthLong
         conn.inputStream.use { input ->
             FileOutputStream(file).use { output ->
@@ -214,6 +222,10 @@ class PlayerViewModel @Inject constructor(
                     }
                 }
             }
+        }
+        if (file.length() == 0L) {
+            file.delete()
+            throw IOException("Downloaded file is empty for $url")
         }
         return file.absolutePath
     }
