@@ -109,7 +109,11 @@ class StreamViewModel @Inject constructor(
     fun cacheStream(streamId: Long) {
         if (downloadJobs.containsKey(streamId)) return
         val stream = _streams.value.find { it.id == streamId } ?: return
-        if (stream.cachedPath.isNotEmpty() && File(stream.cachedPath).exists()) return
+        if (stream.cachedPath.isNotEmpty()) {
+            val f = File(stream.cachedPath)
+            if (f.exists() && f.length() > 0L) return
+            if (f.exists()) f.delete()
+        }
 
         val job = viewModelScope.launch {
             _cachingIds.value = _cachingIds.value + streamId

@@ -118,10 +118,12 @@ class PlayerViewModel @Inject constructor(
             }
             if (entity != null && entity.cachedPath.isNotEmpty()) {
                 if (entity.cachedPath.toLongOrNull() == null) {
-                    if (File(entity.cachedPath).exists()) {
+                    val f = File(entity.cachedPath)
+                    if (f.exists() && f.length() > 0L) {
                         _isCached.value = true
                         return@launch
                     }
+                    if (f.exists()) f.delete()
                 }
             }
             if (checkDownloadManagerCached()) {
@@ -137,8 +139,14 @@ class PlayerViewModel @Inject constructor(
             val entity = withContext(Dispatchers.IO) {
                 streamDao.getStreamById(streamId)
             } ?: return@launch
-            if (entity.cachedPath.isNotEmpty() && entity.cachedPath.toLongOrNull() == null && File(entity.cachedPath).exists()) {
-                _isCached.value = true; return@launch
+            if (entity.cachedPath.isNotEmpty()) {
+                if (entity.cachedPath.toLongOrNull() == null) {
+                    val f = File(entity.cachedPath)
+                    if (f.exists() && f.length() > 0L) {
+                        _isCached.value = true; return@launch
+                    }
+                    if (f.exists()) f.delete()
+                }
             }
             if (checkDownloadManagerCached()) {
                 _isCached.value = true; return@launch
