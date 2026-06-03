@@ -2,6 +2,7 @@ package com.rxplayer.app.di
 
 import android.content.Context
 import androidx.media3.database.ExoDatabaseProvider
+import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
@@ -40,11 +41,16 @@ object CacheModule {
 
     @Provides
     @Singleton
+    fun provideUpstreamDataSourceFactory(@ApplicationContext context: Context): DataSource.Factory {
+        return DefaultDataSource.Factory(context)
+    }
+
+    @Provides
+    @Singleton
     fun provideCacheDataSourceFactory(
-        @ApplicationContext context: Context,
-        cache: SimpleCache
+        cache: SimpleCache,
+        upstreamFactory: DataSource.Factory
     ): CacheDataSource.Factory {
-        val upstreamFactory = DefaultDataSource.Factory(context)
         return CacheDataSource.Factory()
             .setCache(cache)
             .setUpstreamDataSourceFactory(upstreamFactory)
@@ -56,9 +62,9 @@ object CacheModule {
     fun provideDownloadManager(
         @ApplicationContext context: Context,
         databaseProvider: ExoDatabaseProvider,
-        cache: SimpleCache
+        cache: SimpleCache,
+        upstreamFactory: DataSource.Factory
     ): DownloadManager {
-        val upstreamFactory = DefaultDataSource.Factory(context)
         return DownloadManager(
             context, databaseProvider, cache, upstreamFactory,
             Executors.newSingleThreadExecutor()

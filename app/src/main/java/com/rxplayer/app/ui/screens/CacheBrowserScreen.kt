@@ -46,6 +46,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,6 +63,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.rxplayer.app.media.ThumbnailCache
 import com.rxplayer.app.ui.components.CompactTopAppBar
+import com.rxplayer.app.viewmodel.CacheBrowserViewModel
+import com.rxplayer.app.viewmodel.CachedStreamInfo
+import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -87,11 +91,14 @@ private data class CacheFolder(
 
 @Composable
 fun CacheBrowserScreen(
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    viewModel: CacheBrowserViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     var currentDir by remember { mutableStateOf<CacheFolder?>(null) }
     var showClearDialog by remember { mutableStateOf(false) }
+    var deleteTarget by remember { mutableStateOf<CachedStreamInfo?>(null) }
+    val cachedStreams by viewModel.cachedStreams.collectAsState()
 
     if (showClearDialog) {
         AlertDialog(
@@ -114,6 +121,27 @@ fun CacheBrowserScreen(
         )
     }
 
+    if (deleteTarget != null) {
+        AlertDialog(
+            onDismissRequest = { deleteTarget = null },
+            title = { Text("删除缓存") },
+            text = { Text("确定要删除\"${deleteTarget!!.name}\"的缓存吗？") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.removeCachedStream(deleteTarget!!.streamId)
+                    deleteTarget = null
+                }) {
+                    Text("删除")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteTarget = null }) {
+                    Text("取消")
+                }
+            }
+        )
+    }
+
     if (currentDir != null) {
         CacheFolderScreen(
             folder = currentDir!!,
@@ -121,16 +149,20 @@ fun CacheBrowserScreen(
         )
     } else {
         CacheRootScreen(
+            cachedStreams = cachedStreams,
             onClearClick = { showClearDialog = true },
-            onFolderClick = { currentDir = it }
+            onFolderClick = { currentDir = it },
+            onDeleteCachedStream = { deleteTarget = it }
         )
     }
 }
 
 @Composable
 private fun CacheRootScreen(
+    cachedStreams: List<CachedStreamInfo>,
     onClearClick: () -> Unit,
-    onFolderClick: (CacheFolder) -> Unit
+    onFolderClick: (CacheFolder) -> Unit,
+    onDeleteCachedStream: (CachedStreamInfo) -> Unit
 ) {
     val context = LocalContext.current
     var totalSize by remember { mutableStateOf(0L) }
@@ -219,6 +251,22 @@ private fun CacheRootScreen(
                     )
                 ) {
                     Text("清空所有缓存")
+                }
+            }
+
+            if (cachedStreams.isNotEmpty()) {
+                item {
+                    Text(
+                        text = "缓存的流媒体",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
+                    )
+                }
+                items(cachedStreams) { stream ->
+                    CachedStreamRow(
+                        stream = stream,
+                        onDelete = { onDeleteCachedStream(stream) }
+                    )
                 }
             }
 
@@ -629,6 +677,44 @@ private fun CacheItemRow(entry: CacheEntry) {
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
             )
+        }
+    }
+    HorizontalDivider()
+}
+
+@Composable
+private fun CachedStreamRow(
+    stream: CachedStreamInfo,
+    onDelete: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.Videocam,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(36.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stream.name,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = formatSize(stream.bytesDownloaded),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            )
+        }
+        TextButton(onClick = onDelete) {
+            Text("删除", color = MaterialTheme.colorScheme.error)
         }
     }
     HorizontalDivider()
