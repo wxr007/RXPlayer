@@ -2,7 +2,11 @@ package com.rxplayer.app.ui.screens
 
 import android.app.Activity
 import android.content.pm.ActivityInfo
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
+import android.view.LayoutInflater
+import android.view.TextureView
 import android.view.WindowManager
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -99,11 +103,15 @@ import com.rxplayer.app.ui.components.SceneAnalysisProgress
 import com.rxplayer.app.ui.components.SceneGrid
 import com.rxplayer.app.ui.components.TimelinePreviewBar
 import com.rxplayer.app.viewmodel.PlayerViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import java.io.File
+import java.io.FileOutputStream
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -140,6 +148,7 @@ fun PlayerScreen(
     var videoFrameRate by remember { mutableStateOf("") }
     var videoDecoderType by remember { mutableStateOf("") }
     var videoDecoderName by remember { mutableStateOf("") }
+    var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
 
     val decodedPath = Uri.decode(videoPath)
     val videoName = if (displayName.isNotEmpty()) displayName else decodedPath.substringAfterLast("/")
@@ -366,11 +375,20 @@ fun PlayerScreen(
                         }
                         IconButton(
                             onClick = {
-                                val cache = ThumbnailCache(context)
                                 scope.launch {
-                                    val ok = cache.saveFrameAt(videoPath, currentPosition)
-                                    if (ok && streamId > 0L) {
-                                        viewModel.updateStreamCover(streamId, cache.getCachedPath(videoPath))
+                                    val ok = withContext(Dispatchers.IO) {
+                                        val textureView = playerViewRef?.videoSurfaceView as? TextureView
+                                        if (textureView == null) return@withContext false
+                                        val bitmap = textureView.getBitmap() ?: return@withContext false
+                                        val thumbCache = ThumbnailCache(context)
+                                        val outFile = File(thumbCache.getCachedPath(videoPath))
+                                        FileOutputStream(outFile).use { out ->
+                                            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+                                        }
+                                        if (streamId > 0L) {
+                                            viewModel.updateStreamCover(streamId, outFile.absolutePath)
+                                        }
+                                        true
                                     }
                                     snackbarHostState.showSnackbar(
                                         if (ok) "已替换封面" else "截图失败"
@@ -467,11 +485,11 @@ fun PlayerScreen(
                 AndroidView(
                     factory = { ctx ->
                         val exoPlayer = player
-                        PlayerView(ctx).apply {
+                        (LayoutInflater.from(ctx).inflate(R.layout.player_view, null) as PlayerView).apply {
                             this.player = exoPlayer
                             useController = false
                             resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                        }
+                        }.also { playerViewRef = it }
                     },
                     modifier = Modifier
                         .fillMaxSize()
