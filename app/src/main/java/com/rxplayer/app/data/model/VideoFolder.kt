@@ -13,5 +13,6 @@ data class VideoFolder(
     val sortAscending: Int = 0,
     val thumbnailOrientation: Int = 0,
     val autoFullscreen: Int = 0,
-    val playbackMode: Int = 0
+    val playbackMode: Int = 0,
+    val privacyMask: Boolean = false
 )

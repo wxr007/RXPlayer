@@ -124,6 +124,7 @@ fun PlaylistsScreen(
                     )
                     CollectionCard(
                         collection = collection,
+                        privacyMaskEnabled = playlist.privacyMask == 1,
                         onClick = { onPlaylistClick(playlist.id, playlist.name) },
                         onLongClick = { deleteTarget = playlist }
                     )

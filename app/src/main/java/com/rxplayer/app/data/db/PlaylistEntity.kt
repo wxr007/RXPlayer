@@ -15,7 +15,8 @@ data class PlaylistEntity(
     val thumbnailOrientation: Int = 0,
     val autoFullscreen: Int = 0,
     val playbackMode: Int = 0,
-    val coverPaths: String = ""
+    val coverPaths: String = "",
+    val privacyMask: Int = 0
 )
 
 @Entity(

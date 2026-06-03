@@ -55,8 +55,8 @@ fun PlaylistDetailScreen(
     val autoFullscreen by viewModel.autoFullscreen.collectAsState()
     val playbackMode by viewModel.playbackMode.collectAsState()
     val resolutionDisplay by viewModel.resolutionDisplay.collectAsState()
+    val privacyMaskEnabled by viewModel.privacyMask.collectAsState()
     var removeTarget by remember { mutableStateOf<Video?>(null) }
-    var privacyMaskEnabled by remember { mutableStateOf(false) }
     var showLayoutDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(playlistId) {
@@ -113,7 +113,7 @@ fun PlaylistDetailScreen(
                 title = playlistName,
                 onBack = onBack,
                 actions = {
-                    IconButton(onClick = { privacyMaskEnabled = !privacyMaskEnabled }) {
+                    IconButton(onClick = { viewModel.togglePrivacyMask() }) {
                         Icon(
                             imageVector = if (privacyMaskEnabled) Icons.Default.VisibilityOff
                                 else Icons.Default.Visibility,

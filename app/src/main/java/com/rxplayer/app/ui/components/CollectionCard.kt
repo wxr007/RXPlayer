@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -52,6 +53,7 @@ import java.io.File
 fun CollectionCard(
     collection: MediaCollection,
     progress: Float? = null,
+    privacyMaskEnabled: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
@@ -72,7 +74,7 @@ fun CollectionCard(
                     .clip(MaterialTheme.shapes.medium)
             ) {
                 if (collection.coverPaths.isNotEmpty() && progress == null) {
-                    CoverThumbnails(paths = collection.coverPaths)
+                    CoverThumbnails(paths = collection.coverPaths, privacyMaskEnabled = privacyMaskEnabled)
                 } else if (progress != null) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -148,28 +150,45 @@ fun CollectionCard(
 }
 
 @Composable
-private fun CoverThumbnails(paths: List<String>) {
+private fun CoverThumbnails(paths: List<String>, privacyMaskEnabled: Boolean = false) {
     val p0 = paths.getOrNull(0)
     val p1 = paths.getOrNull(1)
     val p2 = paths.getOrNull(2)
     val p3 = paths.getOrNull(3)
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-        ) {
-            CoverThumbnailCell(path = p0, modifier = Modifier.weight(1f))
-            CoverThumbnailCell(path = p1, modifier = Modifier.weight(1f))
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                CoverThumbnailCell(path = p0, modifier = Modifier.weight(1f))
+                CoverThumbnailCell(path = p1, modifier = Modifier.weight(1f))
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                CoverThumbnailCell(path = p2, modifier = Modifier.weight(1f))
+                CoverThumbnailCell(path = p3, modifier = Modifier.weight(1f))
+            }
         }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-        ) {
-            CoverThumbnailCell(path = p2, modifier = Modifier.weight(1f))
-            CoverThumbnailCell(path = p3, modifier = Modifier.weight(1f))
+        if (privacyMaskEnabled) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.85f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.VisibilityOff,
+                    contentDescription = "隐私遮罩",
+                    modifier = Modifier.size(32.dp),
+                    tint = Color.White.copy(alpha = 0.5f)
+                )
+            }
         }
     }
 }

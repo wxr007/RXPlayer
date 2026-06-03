@@ -50,6 +50,9 @@ class VideoListViewModel @Inject constructor(
     private val _playbackMode = MutableStateFlow(0)
     val playbackMode: StateFlow<Int> = _playbackMode
 
+    private val _privacyMask = MutableStateFlow(false)
+    val privacyMask: StateFlow<Boolean> = _privacyMask
+
     val resolutionDisplay: StateFlow<String> = settingsManager.resolutionDisplay
 
     private val _playlists = MutableStateFlow<List<PlaylistEntity>>(emptyList())
@@ -77,6 +80,7 @@ class VideoListViewModel @Inject constructor(
         loadThumbnailOrientation(folderPath)
         loadAutoFullscreen(folderPath)
         loadPlaybackMode(folderPath)
+        loadPrivacyMask(folderPath)
     }
 
     fun setDisplayMode(mode: Boolean) {
@@ -187,6 +191,25 @@ class VideoListViewModel @Inject constructor(
                 repository.getPlaybackMode(folderPath)
             }
             _playbackMode.value = mode
+        }
+    }
+
+    private fun loadPrivacyMask(folderPath: String) {
+        viewModelScope.launch {
+            val mask = withContext(Dispatchers.IO) {
+                repository.getPrivacyMask(folderPath)
+            }
+            _privacyMask.value = mask
+        }
+    }
+
+    fun togglePrivacyMask() {
+        val newValue = !_privacyMask.value
+        _privacyMask.value = newValue
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                repository.setPrivacyMask(currentFolderPath, newValue)
+            }
         }
     }
 

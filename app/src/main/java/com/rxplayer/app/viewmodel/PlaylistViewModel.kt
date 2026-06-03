@@ -52,6 +52,9 @@ class PlaylistViewModel @Inject constructor(
     private val _playbackMode = MutableStateFlow(0)
     val playbackMode: StateFlow<Int> = _playbackMode
 
+    private val _privacyMask = MutableStateFlow(false)
+    val privacyMask: StateFlow<Boolean> = _privacyMask
+
     val resolutionDisplay: StateFlow<String> = settingsManager.resolutionDisplay
 
     private var currentPlaylistId = 0L
@@ -95,6 +98,7 @@ class PlaylistViewModel @Inject constructor(
         loadThumbnailOrientation(playlistId)
         loadAutoFullscreen(playlistId)
         loadPlaybackMode(playlistId)
+        loadPrivacyMask(playlistId)
         viewModelScope.launch {
             playlistDao.getVideosInPlaylist(playlistId)
                 .catch { emit(emptyList()) }
@@ -244,6 +248,23 @@ class PlaylistViewModel @Inject constructor(
         viewModelScope.launch {
             val entity = withContext(Dispatchers.IO) { playlistDao.getPlaylistById(playlistId) }
             _playbackMode.value = entity?.playbackMode ?: 0
+        }
+    }
+
+    private fun loadPrivacyMask(playlistId: Long) {
+        viewModelScope.launch {
+            val entity = withContext(Dispatchers.IO) { playlistDao.getPlaylistById(playlistId) }
+            _privacyMask.value = entity?.privacyMask == 1
+        }
+    }
+
+    fun togglePrivacyMask() {
+        val newValue = !_privacyMask.value
+        _privacyMask.value = newValue
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                playlistDao.updatePrivacyMask(currentPlaylistId, if (newValue) 1 else 0)
+            }
         }
     }
 }

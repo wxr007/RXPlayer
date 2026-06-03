@@ -35,6 +35,9 @@ interface FolderDao {
     @Query("UPDATE folders SET playbackMode = :mode WHERE `path` = :path")
     suspend fun updatePlaybackMode(path: String, mode: Int)
 
+    @Query("UPDATE folders SET privacyMask = :enabled WHERE `path` = :path")
+    suspend fun updatePrivacyMask(path: String, enabled: Int)
+
     @Query("UPDATE folders SET coverPaths = :coverPaths WHERE `path` = :path")
     suspend fun updateCoverPaths(path: String, coverPaths: String)
 

@@ -100,8 +100,8 @@ fun VideoListScreen(
     val playbackMode by viewModel.playbackMode.collectAsState()
     val resolutionDisplay by viewModel.resolutionDisplay.collectAsState()
     val playlists by viewModel.playlists.collectAsState()
+    val privacyMaskEnabled by viewModel.privacyMask.collectAsState()
     var showLayoutDialog by remember { mutableStateOf(false) }
-    var privacyMaskEnabled by remember { mutableStateOf(false) }
     var showAddToPlaylistDialog by remember { mutableStateOf(false) }
     var selectedVideoForPlaylist by remember { mutableStateOf<Video?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -168,7 +168,7 @@ fun VideoListScreen(
                 title = folderName,
                 onBack = onBack,
                 actions = {
-                    IconButton(onClick = { privacyMaskEnabled = !privacyMaskEnabled }) {
+                    IconButton(onClick = { viewModel.togglePrivacyMask() }) {
                         Icon(
                             imageVector = if (privacyMaskEnabled) Icons.Default.VisibilityOff
                                 else Icons.Default.Visibility,

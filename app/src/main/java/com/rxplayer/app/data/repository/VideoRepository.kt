@@ -117,6 +117,14 @@ class VideoRepository @Inject constructor(
         folderDao.updatePlaybackMode(folderPath, mode)
     }
 
+    suspend fun getPrivacyMask(folderPath: String): Boolean {
+        return folderDao.getByPath(folderPath)?.privacyMask == 1
+    }
+
+    suspend fun setPrivacyMask(folderPath: String, enabled: Boolean) {
+        folderDao.updatePrivacyMask(folderPath, if (enabled) 1 else 0)
+    }
+
     suspend fun scanSafFolderWithProgress(
         safUri: String,
         onProgress: (Float, String) -> Unit
@@ -436,5 +444,6 @@ private fun com.rxplayer.app.data.db.FolderEntity.toModel() = VideoFolder(
     sortAscending = sortAscending,
     thumbnailOrientation = thumbnailOrientation,
     autoFullscreen = autoFullscreen,
-    playbackMode = playbackMode
+    playbackMode = playbackMode,
+    privacyMask = privacyMask == 1
 )

@@ -11,7 +11,8 @@ data class PlaylistWithCount(
     val name: String,
     val createdAt: Long,
     val videoCount: Int,
-    val coverPaths: String
+    val coverPaths: String,
+    val privacyMask: Int = 0
 )
 
 internal fun PlaylistVideoJoined.toVideo() = com.rxplayer.app.data.model.Video(
@@ -40,7 +41,8 @@ interface PlaylistDao {
     @Query("""
         SELECT p.id, p.name, p.createdAt,
         (SELECT COUNT(*) FROM playlist_videos pv WHERE pv.playlistId = p.id) AS videoCount,
-        p.coverPaths
+        p.coverPaths,
+        p.privacyMask
         FROM playlists p ORDER BY p.createdAt DESC
     """)
     fun getAllPlaylistsWithCount(): Flow<List<PlaylistWithCount>>
@@ -95,6 +97,9 @@ interface PlaylistDao {
 
     @Query("UPDATE playlists SET playbackMode = :mode WHERE id = :playlistId")
     suspend fun updatePlaybackMode(playlistId: Long, mode: Int)
+
+    @Query("UPDATE playlists SET privacyMask = :enabled WHERE id = :playlistId")
+    suspend fun updatePrivacyMask(playlistId: Long, enabled: Int)
 
     @Query("UPDATE playlists SET coverPaths = :coverPaths WHERE id = :playlistId")
     suspend fun updateCoverPaths(playlistId: Long, coverPaths: String)

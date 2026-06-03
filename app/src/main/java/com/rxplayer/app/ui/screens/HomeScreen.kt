@@ -150,6 +150,7 @@ fun HomeScreen(
                         CollectionCard(
                             collection = MediaCollection.Folder(folder),
                             progress = scanProgress[folder.path],
+                            privacyMaskEnabled = folder.privacyMask,
                             onClick = { onFolderClick(folder.path) },
                             onLongClick = { deleteTarget = folder }
                         )
