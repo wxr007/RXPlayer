@@ -2,11 +2,12 @@ package com.rxplayer.app.di
 
 import android.content.Context
 import androidx.media3.database.ExoDatabaseProvider
-import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.exoplayer.offline.DownloadManager
+import androidx.media3.exoplayer.scheduler.Requirements
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -39,8 +40,11 @@ object CacheModule {
 
     @Provides
     @Singleton
-    fun provideCacheDataSourceFactory(cache: SimpleCache): CacheDataSource.Factory {
-        val upstreamFactory = DefaultHttpDataSource.Factory()
+    fun provideCacheDataSourceFactory(
+        @ApplicationContext context: Context,
+        cache: SimpleCache
+    ): CacheDataSource.Factory {
+        val upstreamFactory = DefaultDataSource.Factory(context)
         return CacheDataSource.Factory()
             .setCache(cache)
             .setUpstreamDataSourceFactory(upstreamFactory)
@@ -54,10 +58,13 @@ object CacheModule {
         databaseProvider: ExoDatabaseProvider,
         cache: SimpleCache
     ): DownloadManager {
-        val upstreamFactory = DefaultHttpDataSource.Factory()
+        val upstreamFactory = DefaultDataSource.Factory(context)
         return DownloadManager(
             context, databaseProvider, cache, upstreamFactory,
             Executors.newSingleThreadExecutor()
-        )
+        ).also {
+            it.setRequirements(Requirements(Requirements.NETWORK))
+            it.resumeDownloads()
+        }
     }
 }
