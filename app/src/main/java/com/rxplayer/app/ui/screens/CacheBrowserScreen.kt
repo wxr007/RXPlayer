@@ -175,9 +175,22 @@ private fun CacheRootScreen(
         )
     }
 
+    val exoCacheFolder = remember {
+        val dir = File(context.cacheDir, "exoplayer_cache")
+        if (!dir.exists()) return@remember null
+        val files = dir.listFiles() ?: emptyArray()
+        CacheFolder(
+            name = "exoplayer_cache",
+            path = dir.absolutePath,
+            fileCount = files.size,
+            totalSize = files.sumOf { it.length() },
+            category = "ExoPlayer缓存"
+        )
+    }
+
     LaunchedEffect(Unit) {
-        totalSize = thumbnailFolder.totalSize + streamFolder.totalSize + sceneFolders.sumOf { it.totalSize }
-        totalCount = thumbnailFolder.fileCount + streamFolder.fileCount + sceneFolders.sumOf { it.fileCount }
+        totalSize = thumbnailFolder.totalSize + streamFolder.totalSize + sceneFolders.sumOf { it.totalSize } + (exoCacheFolder?.totalSize ?: 0)
+        totalCount = thumbnailFolder.fileCount + streamFolder.fileCount + sceneFolders.sumOf { it.fileCount } + (exoCacheFolder?.fileCount ?: 0)
     }
 
     Scaffold(
@@ -253,6 +266,22 @@ private fun CacheRootScreen(
                     FolderItem(
                         folder = streamFolder,
                         onClick = { onFolderClick(streamFolder) }
+                    )
+                }
+            }
+
+            if (exoCacheFolder != null && exoCacheFolder.fileCount > 0) {
+                item {
+                    Text(
+                        text = "ExoPlayer缓存",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
+                    )
+                }
+                item {
+                    FolderItem(
+                        folder = exoCacheFolder,
+                        onClick = { onFolderClick(exoCacheFolder) }
                     )
                 }
             }
@@ -635,6 +664,11 @@ private fun clearCache(cacheDir: File) {
                 if (sub.isDirectory) sub.listFiles()?.forEach { it.delete() }
                 sub.delete()
             }
+        }
+    }
+    File(cacheDir, "exoplayer_cache").let { dir ->
+        if (dir.exists()) {
+            dir.listFiles()?.forEach { it.deleteRecursively() }
         }
     }
 }
