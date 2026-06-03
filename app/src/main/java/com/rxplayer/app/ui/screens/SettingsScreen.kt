@@ -30,7 +30,6 @@ import com.rxplayer.app.viewmodel.SettingsViewModel
 
 @Composable
 fun SettingsScreen(
-    onCacheBrowserClick: () -> Unit = {},
     onFileBrowserClick: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
@@ -217,15 +216,6 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp, vertical = 4.dp)
         ) {
             Text("文件浏览")
-        }
-
-        Button(
-            onClick = onCacheBrowserClick,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp)
-        ) {
-            Text("缓存管理")
         }
 
         Spacer(modifier = Modifier.height(24.dp))

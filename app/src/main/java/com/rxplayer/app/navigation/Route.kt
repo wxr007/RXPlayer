@@ -18,7 +18,6 @@ sealed class Route(val route: String) {
     object Streams : Route("streams")
     object History : Route("history")
     object Settings : Route("settings")
-    object CacheBrowser : Route("cache_browser")
     object FileBrowser : Route("file_browser")
     object Player : Route("player/{videoPath}?autoFullscreen={autoFullscreen}&playbackMode={playbackMode}&folderPath={folderPath}&playlistId={playlistId}&streamId={streamId}&displayName={displayName}") {
         fun createRoute(videoPath: String, autoFullscreen: Int = 0, playbackMode: Int = 0, folderPath: String = "", playlistId: Long = 0, streamId: Long = 0L, displayName: String = "") =

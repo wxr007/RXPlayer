@@ -39,7 +39,6 @@ import com.rxplayer.app.ui.screens.PlaylistDetailScreen
 import com.rxplayer.app.ui.screens.PlaylistsScreen
 import com.rxplayer.app.ui.screens.HomeScreen
 import com.rxplayer.app.ui.screens.PlayerScreen
-import com.rxplayer.app.ui.screens.CacheBrowserScreen
 import com.rxplayer.app.ui.screens.FileBrowserScreen
 import com.rxplayer.app.ui.screens.SettingsScreen
 import com.rxplayer.app.ui.screens.StreamsScreen
@@ -174,17 +173,6 @@ fun RXPlayerNavHost() {
             }
             composable(Route.Settings.route) {
                 SettingsScreen(
-                    onCacheBrowserClick = {
-                        navController.navigate(Route.CacheBrowser.route)
-                    },
-                    onFileBrowserClick = {
-                        navController.navigate(Route.FileBrowser.route)
-                    }
-                )
-            }
-            composable(Route.CacheBrowser.route) {
-                CacheBrowserScreen(
-                    onBack = { navController.popBackStack() },
                     onFileBrowserClick = {
                         navController.navigate(Route.FileBrowser.route)
                     }
