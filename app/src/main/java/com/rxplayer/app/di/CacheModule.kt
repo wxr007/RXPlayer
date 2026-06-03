@@ -62,10 +62,14 @@ object CacheModule {
     fun provideDownloadManager(
         @ApplicationContext context: Context,
         databaseProvider: ExoDatabaseProvider,
-        cacheDataSourceFactory: CacheDataSource.Factory
+        cache: SimpleCache,
+        upstreamFactory: DataSource.Factory
     ): DownloadManager {
         val downloadIndex = DefaultDownloadIndex(databaseProvider, "downloads")
-        val downloaderFactory = DefaultDownloaderFactory(cacheDataSourceFactory)
+        val downloadCacheFactory = CacheDataSource.Factory()
+            .setCache(cache)
+            .setUpstreamDataSourceFactory(upstreamFactory)
+        val downloaderFactory = DefaultDownloaderFactory(downloadCacheFactory)
         return DownloadManager(context, downloadIndex, downloaderFactory)
     }
 }
