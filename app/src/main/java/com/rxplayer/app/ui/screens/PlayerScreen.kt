@@ -144,8 +144,8 @@ fun PlayerScreen(
     val timelineLazyListState = rememberLazyListState()
     var overlayTimerKey by remember { mutableStateOf(0) }
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
-    var privacyMaskEnabled by remember { mutableStateOf(false) }
     var showAnalysisDialog by remember { mutableStateOf(false) }
+    val privacyMaskEnabled by viewModel.privacyMask.collectAsState()
     var videoResolution by remember { mutableStateOf("") }
     var videoCodec by remember { mutableStateOf("") }
     var videoFrameRate by remember { mutableStateOf("") }
@@ -455,16 +455,6 @@ fun PlayerScreen(
                                     )
                                 }
                             }
-                        }
-                        IconButton(
-                            onClick = { privacyMaskEnabled = !privacyMaskEnabled }
-                        ) {
-                            Icon(
-                                imageVector = if (privacyMaskEnabled) Icons.Default.VisibilityOff
-                                    else Icons.Default.Visibility,
-                                contentDescription = if (privacyMaskEnabled) "关闭隐私遮罩"
-                                    else "开启隐私遮罩"
-                            )
                         }
                     }
                 )

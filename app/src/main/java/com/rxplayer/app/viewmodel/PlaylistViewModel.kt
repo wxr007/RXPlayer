@@ -53,6 +53,7 @@ class PlaylistViewModel @Inject constructor(
     val playbackMode: StateFlow<Int> = _playbackMode
 
     val resolutionDisplay: StateFlow<String> = settingsManager.resolutionDisplay
+    val privacyMask: StateFlow<Boolean> = settingsManager.privacyMask
 
     private var currentPlaylistId = 0L
 
@@ -245,6 +246,10 @@ class PlaylistViewModel @Inject constructor(
             val entity = withContext(Dispatchers.IO) { playlistDao.getPlaylistById(playlistId) }
             _playbackMode.value = entity?.playbackMode ?: 0
         }
+    }
+
+    fun togglePrivacyMask() {
+        settingsManager.setPrivacyMask(!settingsManager.privacyMask.value)
     }
 }
 

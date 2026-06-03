@@ -38,6 +38,8 @@ import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
@@ -97,6 +99,7 @@ fun VideoListScreen(
     val autoFullscreen by viewModel.autoFullscreen.collectAsState()
     val playbackMode by viewModel.playbackMode.collectAsState()
     val resolutionDisplay by viewModel.resolutionDisplay.collectAsState()
+    val privacyMaskEnabled by viewModel.privacyMask.collectAsState()
     val playlists by viewModel.playlists.collectAsState()
     var showLayoutDialog by remember { mutableStateOf(false) }
     var showAddToPlaylistDialog by remember { mutableStateOf(false) }
@@ -165,6 +168,13 @@ fun VideoListScreen(
                 title = folderName,
                 onBack = onBack,
                 actions = {
+                    IconButton(onClick = { viewModel.togglePrivacyMask() }) {
+                        Icon(
+                            imageVector = if (privacyMaskEnabled) Icons.Default.VisibilityOff
+                                else Icons.Default.Visibility,
+                            contentDescription = if (privacyMaskEnabled) "关闭隐私遮罩" else "开启隐私遮罩"
+                        )
+                    }
                     IconButton(onClick = { showLayoutDialog = true }) {
                         Icon(
                             imageVector = Icons.Default.Settings,
@@ -227,6 +237,7 @@ fun VideoListScreen(
                         video = video,
                         cropMode = cropMode,
                         portrait = portrait,
+                        privacyMaskEnabled = privacyMaskEnabled,
                         resolutionDisplay = resolutionDisplay,
                         onClick = { onVideoClick(video.filePath, autoFullscreen, playbackMode) },
                         onAddToPlaylistClick = {
@@ -444,6 +455,7 @@ internal fun VideoGridItem(
     cropMode: Boolean,
     portrait: Boolean,
     resolutionDisplay: String = "full",
+    privacyMaskEnabled: Boolean = false,
     onClick: () -> Unit,
     onAddToPlaylistClick: (() -> Unit)? = null,
     onRemoveFromPlaylistClick: (() -> Unit)? = null
@@ -511,6 +523,22 @@ internal fun VideoGridItem(
                             style = MaterialTheme.typography.labelSmall,
                             color = Color.White,
                             fontSize = 10.sp
+                        )
+                    }
+                }
+
+                if (privacyMaskEnabled) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.85f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.VisibilityOff,
+                            contentDescription = "隐私遮罩",
+                            modifier = Modifier.size(32.dp),
+                            tint = Color.White.copy(alpha = 0.5f)
                         )
                     }
                 }

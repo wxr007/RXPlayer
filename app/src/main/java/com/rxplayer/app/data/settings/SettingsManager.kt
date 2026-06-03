@@ -31,12 +31,16 @@ class SettingsManager @Inject constructor(
     private val _resolutionDisplay = MutableStateFlow(readResolutionDisplay())
     val resolutionDisplay: StateFlow<String> = _resolutionDisplay
 
+    private val _privacyMask = MutableStateFlow(readPrivacyMask())
+    val privacyMask: StateFlow<Boolean> = _privacyMask
+
     private fun readThemeMode(): String = prefs.getString("theme_mode", "system") ?: "system"
     private fun readAutoPlay(): Boolean = prefs.getBoolean("auto_play", true)
     private fun readAnalysisMode(): String = prefs.getString("analysis_mode", "smart") ?: "smart"
     private fun readAnalysisInterval(): Int = prefs.getInt("analysis_interval", 30)
     private fun readSeekStep(): Int = prefs.getInt("seek_step", 10)
     private fun readResolutionDisplay(): String = prefs.getString("resolution_display", "full") ?: "full"
+    private fun readPrivacyMask(): Boolean = prefs.getBoolean("privacy_mask", false)
 
     fun setThemeMode(mode: String) {
         prefs.edit().putString("theme_mode", mode).apply()
@@ -68,5 +72,10 @@ class SettingsManager @Inject constructor(
     fun setResolutionDisplay(mode: String) {
         prefs.edit().putString("resolution_display", mode).apply()
         _resolutionDisplay.value = mode
+    }
+
+    fun setPrivacyMask(enabled: Boolean) {
+        prefs.edit().putBoolean("privacy_mask", enabled).apply()
+        _privacyMask.value = enabled
     }
 }

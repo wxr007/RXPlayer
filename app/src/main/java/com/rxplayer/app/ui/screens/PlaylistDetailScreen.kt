@@ -11,6 +11,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -53,6 +55,7 @@ fun PlaylistDetailScreen(
     val autoFullscreen by viewModel.autoFullscreen.collectAsState()
     val playbackMode by viewModel.playbackMode.collectAsState()
     val resolutionDisplay by viewModel.resolutionDisplay.collectAsState()
+    val privacyMaskEnabled by viewModel.privacyMask.collectAsState()
     var removeTarget by remember { mutableStateOf<Video?>(null) }
     var showLayoutDialog by remember { mutableStateOf(false) }
 
@@ -110,6 +113,13 @@ fun PlaylistDetailScreen(
                 title = playlistName,
                 onBack = onBack,
                 actions = {
+                    IconButton(onClick = { viewModel.togglePrivacyMask() }) {
+                        Icon(
+                            imageVector = if (privacyMaskEnabled) Icons.Default.VisibilityOff
+                                else Icons.Default.Visibility,
+                            contentDescription = if (privacyMaskEnabled) "关闭隐私遮罩" else "开启隐私遮罩"
+                        )
+                    }
                     IconButton(onClick = { showLayoutDialog = true }) {
                         Icon(
                             imageVector = Icons.Default.Settings,
@@ -148,6 +158,7 @@ fun PlaylistDetailScreen(
                         video = video,
                         cropMode = cropMode,
                         portrait = portrait,
+                        privacyMaskEnabled = privacyMaskEnabled,
                         resolutionDisplay = resolutionDisplay,
                         onClick = { onVideoClick(video.filePath, autoFullscreen, playbackMode) },
                         onRemoveFromPlaylistClick = { removeTarget = video }
