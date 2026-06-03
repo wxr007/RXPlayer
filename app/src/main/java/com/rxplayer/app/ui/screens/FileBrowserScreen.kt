@@ -1,5 +1,7 @@
 package com.rxplayer.app.ui.screens
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -7,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -16,21 +19,30 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.rxplayer.app.media.ThumbnailCache
 import com.rxplayer.app.ui.components.CompactTopAppBar
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -153,9 +165,30 @@ private fun FolderRow(
     HorizontalDivider()
 }
 
+private val imageExtensions = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp")
+private val videoExtensions = setOf("mp4", "mkv", "ts", "webm", "avi", "mov", "3gp", "m4v")
+
 @Composable
 private fun FileRow(entry: Entry) {
+    val context = LocalContext.current
     val dateFormat = remember { SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()) }
+    val ext = entry.name.substringAfterLast('.', "").lowercase()
+    val isImage = ext in imageExtensions
+    val isVideo = ext in videoExtensions
+
+    var thumbnail by remember(entry.path) { mutableStateOf<Bitmap?>(null) }
+
+    LaunchedEffect(entry.path) {
+        if (isImage) {
+            thumbnail = withContext(Dispatchers.IO) {
+                try {
+                    BitmapFactory.decodeFile(entry.path)
+                } catch (_: Exception) { null }
+            }
+        } else if (isVideo) {
+            thumbnail = ThumbnailCache(context).getThumbnail(entry.path)
+        }
+    }
 
     Row(
         modifier = Modifier
@@ -163,12 +196,26 @@ private fun FileRow(entry: Entry) {
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = Icons.Default.Description,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-            modifier = Modifier.size(36.dp)
-        )
+        if (thumbnail != null) {
+            Image(
+                bitmap = thumbnail!!.asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier.size(54.dp),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            val icon = when {
+                isImage -> Icons.Default.Image
+                isVideo -> Icons.Default.Movie
+                else -> Icons.Default.Description
+            }
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                modifier = Modifier.size(36.dp)
+            )
+        }
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
