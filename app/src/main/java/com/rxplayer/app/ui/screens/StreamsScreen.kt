@@ -186,7 +186,7 @@ fun StreamsScreen(
                         isCaching = stream.id in cachingIds,
                         cacheProgress = cachingProgress[stream.id] ?: 0,
                         onClick = {
-                            val playPath = if (stream.cachedPath.isNotEmpty()) stream.cachedPath else stream.url
+                            val playPath = if (stream.cachedPath.isNotEmpty() && stream.cachedPath.toLongOrNull() == null) stream.cachedPath else stream.url
                             onStreamClick(playPath, stream.id, stream.name)
                         },
                         onLongClick = { deleteTarget = stream },

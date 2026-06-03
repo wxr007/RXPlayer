@@ -67,17 +67,25 @@ class StreamViewModel @Inject constructor(
                 if (streamIdSet.isNotEmpty()) {
                     val cachingSet = mutableSetOf<Long>()
                     val progressMap = mutableMapOf<Long, Int>()
+                    val completed = mutableListOf<Long>()
                     val cursor = try {
                         downloadManager.getDownloadIndex().getDownloads()
                     } catch (_: Exception) { null }
                     if (cursor != null) {
                         while (cursor.moveToNext()) {
                             val download = cursor.download
-                            if (download.request.id in streamIdSet && download.state == Download.STATE_DOWNLOADING) {
+                            if (download.request.id in streamIdSet) {
                                 val sid = download.request.id.toLongOrNull()
                                 if (sid != null) {
-                                    cachingSet.add(sid)
-                                    progressMap[sid] = download.percentDownloaded.toInt()
+                                    when (download.state) {
+                                        Download.STATE_DOWNLOADING -> {
+                                            cachingSet.add(sid)
+                                            progressMap[sid] = download.percentDownloaded.toInt()
+                                        }
+                                        Download.STATE_COMPLETED -> {
+                                            completed.add(sid)
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -85,6 +93,13 @@ class StreamViewModel @Inject constructor(
                     }
                     _cachingIds.value = cachingSet
                     _cachingProgress.value = progressMap
+                    if (completed.isNotEmpty()) {
+                        withContext(Dispatchers.IO) {
+                            completed.forEach { sid ->
+                                streamDao.updateCachedPath(sid, sid.toString())
+                            }
+                        }
+                    }
                 }
                 delay(1000)
             }
