@@ -80,7 +80,8 @@ private data class CacheEntry(
     val path: String,
     val size: Long,
     val lastModified: Long,
-    val category: String
+    val category: String,
+    val isDirectory: Boolean = false
 )
 
 private data class CacheFolder(
@@ -100,6 +101,7 @@ fun CacheBrowserScreen(
     var currentDir by remember { mutableStateOf<CacheFolder?>(null) }
     var showClearDialog by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<CachedStreamInfo?>(null) }
+    var fileBrowserPath by remember { mutableStateOf<String?>(null) }
     val cachedStreams by viewModel.cachedStreams.collectAsState()
 
     if (showClearDialog) {
@@ -144,7 +146,12 @@ fun CacheBrowserScreen(
         )
     }
 
-    if (currentDir != null) {
+    if (fileBrowserPath != null) {
+        FileBrowserScreen(
+            startPath = fileBrowserPath!!,
+            onBack = { fileBrowserPath = null }
+        )
+    } else if (currentDir != null) {
         CacheFolderScreen(
             folder = currentDir!!,
             onBack = { currentDir = null }
@@ -154,9 +161,116 @@ fun CacheBrowserScreen(
             cachedStreams = cachedStreams,
             onClearClick = { showClearDialog = true },
             onFolderClick = { currentDir = it },
-            onDeleteCachedStream = { deleteTarget = it }
+            onDeleteCachedStream = { deleteTarget = it },
+            onFileBrowserClick = {
+                fileBrowserPath = context.cacheDir.absolutePath
+            }
         )
     }
+}
+
+@Composable
+private fun FileBrowserScreen(
+    startPath: String,
+    onBack: () -> Unit
+) {
+    var currentPath by remember { mutableStateOf(startPath) }
+
+    val entries = remember(currentPath) {
+        loadFolderEntries(currentPath)
+    }
+
+    Scaffold(
+        topBar = {
+            CompactTopAppBar(
+                title = File(currentPath).name.ifEmpty { "缓存目录" },
+                onBack = {
+                    val parent = File(currentPath).parentFile
+                    if (parent != null && currentPath.startsWith(startPath)) {
+                        currentPath = parent.absolutePath
+                    } else {
+                        onBack()
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        if (entries.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "空文件夹",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 16.dp)
+            ) {
+                items(entries, key = { it.path }) { entry ->
+                    if (entry.isDirectory) {
+                        FileBrowserFolderRow(
+                            entry = entry,
+                            onClick = { currentPath = entry.path }
+                        )
+                    } else {
+                        CacheItemRow(entry)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FileBrowserFolderRow(
+    entry: CacheEntry,
+    onClick: () -> Unit
+) {
+    val subFiles = remember(entry.path) {
+        File(entry.path).listFiles()?.filter { it.isFile } ?: emptyList()
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.Folder,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(36.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = entry.name,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = "${subFiles.size}个文件",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            )
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = "打开",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+    HorizontalDivider()
 }
 
 @Composable
@@ -164,7 +278,8 @@ private fun CacheRootScreen(
     cachedStreams: List<CachedStreamInfo>,
     onClearClick: () -> Unit,
     onFolderClick: (CacheFolder) -> Unit,
-    onDeleteCachedStream: (CachedStreamInfo) -> Unit
+    onDeleteCachedStream: (CachedStreamInfo) -> Unit,
+    onFileBrowserClick: () -> Unit
 ) {
     val context = LocalContext.current
     var totalSize by remember { mutableStateOf(0L) }
@@ -253,6 +368,15 @@ private fun CacheRootScreen(
                     )
                 ) {
                     Text("清空所有缓存")
+                }
+            }
+
+            item {
+                Button(
+                    onClick = onFileBrowserClick,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("文件浏览")
                 }
             }
 
@@ -753,17 +877,47 @@ private fun loadFolderFiles(dirPath: String): List<CacheEntry> {
     val dir = File(dirPath)
     if (!dir.exists()) return emptyList()
     return dir.listFiles()
+        ?.filter { it.isFile }
         ?.map { file ->
             CacheEntry(
                 name = file.name,
                 path = file.absolutePath,
                 size = file.length(),
                 lastModified = file.lastModified(),
-                category = ""
+                category = "",
+                isDirectory = false
             )
         }
         ?.sortedByDescending { it.lastModified }
         ?: emptyList()
+}
+
+private fun loadFolderEntries(dirPath: String): List<CacheEntry> {
+    val dir = File(dirPath)
+    if (!dir.exists()) return emptyList()
+    val files = dir.listFiles() ?: return emptyList()
+    val dirs = files.filter { it.isDirectory }.sortedBy { it.name }
+    val regularFiles = files.filter { it.isFile }.sortedBy { it.name }
+    return dirs.map { dirFile ->
+        val subFiles = dirFile.listFiles()?.filter { it.isFile } ?: emptyList()
+        CacheEntry(
+            name = dirFile.name,
+            path = dirFile.absolutePath,
+            size = subFiles.sumOf { it.length() },
+            lastModified = dirFile.lastModified(),
+            category = "",
+            isDirectory = true
+        )
+    } + regularFiles.map { file ->
+        CacheEntry(
+            name = file.name,
+            path = file.absolutePath,
+            size = file.length(),
+            lastModified = file.lastModified(),
+            category = "",
+            isDirectory = false
+        )
+    }
 }
 
 private fun clearCache(cacheDir: File) {
