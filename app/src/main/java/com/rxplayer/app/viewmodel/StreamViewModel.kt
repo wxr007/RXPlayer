@@ -1,21 +1,22 @@
 package com.rxplayer.app.viewmodel
 
-import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.media3.exoplayer.offline.Download
+import androidx.media3.exoplayer.offline.DownloadManager
+import androidx.media3.exoplayer.offline.DownloadRequest
 import com.rxplayer.app.data.db.StreamDao
 import com.rxplayer.app.data.db.StreamEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileOutputStream
-import java.net.URL
 import javax.inject.Inject
 
 data class StreamItem(
@@ -29,8 +30,8 @@ data class StreamItem(
 
 @HiltViewModel
 class StreamViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
-    private val streamDao: StreamDao
+    private val streamDao: StreamDao,
+    private val downloadManager: DownloadManager
 ) : ViewModel() {
 
     private val _streams = MutableStateFlow<List<StreamItem>>(emptyList())
@@ -44,6 +45,7 @@ class StreamViewModel @Inject constructor(
 
     init {
         observeStreams()
+        pollDownloadStates()
     }
 
     private fun observeStreams() {
@@ -53,6 +55,38 @@ class StreamViewModel @Inject constructor(
                 .collect { entities ->
                     _streams.value = entities.map { it.toItem() }
                 }
+        }
+    }
+
+    private fun pollDownloadStates() {
+        viewModelScope.launch {
+            while (true) {
+                val currentStreams = _streams.value
+                val streamIdSet = currentStreams.map { it.id.toString() }.toSet()
+                if (streamIdSet.isNotEmpty()) {
+                    val cachingSet = mutableSetOf<Long>()
+                    val progressMap = mutableMapOf<Long, Int>()
+                    val cursor = try {
+                        downloadManager.getDownloadIndex().getDownloads()
+                    } catch (_: Exception) { null }
+                    if (cursor != null) {
+                        while (cursor.moveToNext()) {
+                            val download = cursor.download
+                            if (download.request.id in streamIdSet && download.state == Download.STATE_DOWNLOADING) {
+                                val sid = download.request.id.toLongOrNull()
+                                if (sid != null) {
+                                    cachingSet.add(sid)
+                                    progressMap[sid] = download.percentDownloaded.toInt()
+                                }
+                            }
+                        }
+                        cursor.close()
+                    }
+                    _cachingIds.value = cachingSet
+                    _cachingProgress.value = progressMap
+                }
+                delay(1000)
+            }
         }
     }
 
@@ -99,43 +133,17 @@ class StreamViewModel @Inject constructor(
         if (stream.cachedPath.isNotEmpty() && File(stream.cachedPath).exists()) return
 
         viewModelScope.launch {
-            _cachingIds.value = _cachingIds.value + streamId
-            _cachingProgress.value = _cachingProgress.value + (streamId to 0)
+            val existing = try {
+                downloadManager.getDownloadIndex().getDownload(streamId.toString())
+            } catch (_: Exception) { null }
+            if (existing != null && existing.state == Download.STATE_COMPLETED) return@launch
+            if (existing != null && existing.state == Download.STATE_DOWNLOADING) return@launch
+
+            val request = DownloadRequest.Builder(streamId.toString(), Uri.parse(stream.url)).build()
             try {
-                val cacheDir = File(context.cacheDir, "stream_cache").also { it.mkdirs() }
-                val ext = stream.url.substringAfterLast(".").substringBefore("?").take(10)
-                    .ifEmpty { "mp4" }
-                val targetFile = File(cacheDir, "${streamId}_${stream.name.hashCode().toUInt()}.$ext")
-
-                withContext(Dispatchers.IO) {
-                    val connection = URL(stream.url).openConnection()
-                    connection.connectTimeout = 15000
-                    connection.readTimeout = 30000
-                    connection.connect()
-                    val totalBytes = connection.contentLengthLong
-                    val input = connection.getInputStream()
-                    val output = FileOutputStream(targetFile)
-                    val buffer = ByteArray(8192)
-                    var bytesRead: Int
-                    var totalRead = 0L
-                    while (input.read(buffer).also { bytesRead = it } != -1) {
-                        output.write(buffer, 0, bytesRead)
-                        totalRead += bytesRead
-                        if (totalBytes > 0) {
-                            val pct = ((totalRead * 100) / totalBytes).toInt().coerceIn(0, 100)
-                            _cachingProgress.value = _cachingProgress.value + (streamId to pct)
-                        }
-                    }
-                    output.close()
-                    input.close()
-                }
-
-                streamDao.updateCachedPath(streamId, targetFile.absolutePath)
-            } catch (_: Exception) {
-            } finally {
-                _cachingIds.value = _cachingIds.value - streamId
-                _cachingProgress.value = _cachingProgress.value - streamId
-            }
+                downloadManager.addDownload(request)
+            } catch (_: Exception) {}
+            _cachingIds.value = _cachingIds.value + streamId
         }
     }
 }

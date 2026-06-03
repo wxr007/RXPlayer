@@ -72,6 +72,7 @@ fun StreamsScreen(
 ) {
     val streams by viewModel.streams.collectAsState()
     val cachingIds by viewModel.cachingIds.collectAsState()
+    val cachingProgress by viewModel.cachingProgress.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<StreamItem?>(null) }
     var renameTarget by remember { mutableStateOf<StreamItem?>(null) }
@@ -183,6 +184,7 @@ fun StreamsScreen(
                     StreamCard(
                         stream = stream,
                         isCaching = stream.id in cachingIds,
+                        cacheProgress = cachingProgress[stream.id] ?: 0,
                         onClick = {
                             val playPath = if (stream.cachedPath.isNotEmpty()) stream.cachedPath else stream.url
                             onStreamClick(playPath, stream.id, stream.name)
@@ -202,6 +204,7 @@ fun StreamsScreen(
 private fun StreamCard(
     stream: StreamItem,
     isCaching: Boolean,
+    cacheProgress: Int,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onCacheClick: () -> Unit,
@@ -274,10 +277,18 @@ private fun StreamCard(
                         tint = Color(0xFF4CAF50)
                     )
                 } else if (isCaching) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(36.dp),
-                        strokeWidth = 3.dp
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(
+                            progress = { cacheProgress / 100f },
+                            modifier = Modifier.size(48.dp),
+                            strokeWidth = 4.dp
+                        )
+                        Text(
+                            text = "$cacheProgress%",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 } else {
                     Icon(
                         imageVector = Icons.Default.PlayCircle,
