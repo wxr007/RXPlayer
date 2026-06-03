@@ -28,6 +28,8 @@
 
 After every code change, run `./gradlew installDebug` to compile and install, then `git add` + `git commit` with a descriptive message. Do not skip compilation or commit unless the user explicitly says otherwise.
 
+每次修改完成后必须将修改提交到 git，并在 AGENTS.md 中记录本次修改的内容摘要。请不要跳过提交步骤。
+
 ## Project Technical Stack
 
 - **Build:** Gradle 8.11.1 + Kotlin DSL, AGP 8.7.3
