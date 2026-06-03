@@ -30,6 +30,8 @@ After every code change, run `./gradlew installDebug` to compile and install, th
 
 每次修改完成后必须将修改提交到 git，并在 AGENTS.md 中记录本次修改的内容摘要。请不要跳过提交步骤。
 
+每次修改完成后需要在 `app/build.gradle.kts` 中递增 `versionName`（如 1.0.0 → 1.0.1 → 1.0.2）。
+
 ## Project Technical Stack
 
 - **Build:** Gradle 8.11.1 + Kotlin DSL, AGP 8.7.3
