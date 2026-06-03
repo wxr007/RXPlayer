@@ -67,6 +67,8 @@ object CacheModule {
         return DownloadManager(
             context, databaseProvider, cache, upstreamFactory,
             Executors.newSingleThreadExecutor()
-        )
+        ).also {
+            it.resumeDownloads()
+        }
     }
 }
