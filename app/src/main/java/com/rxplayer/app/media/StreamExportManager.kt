@@ -266,13 +266,17 @@ class StreamExportManager @Inject constructor(
         val muxer = MediaMuxer(outputPath, 0)
         val trackMap = mutableMapOf<Int, Int>()
         var firstSegment = true
+        var muxerStarted = false
         var cumulativeDurationUs = 0L
 
         try {
             for (segmentFile in segmentFiles) {
+                if (!segmentFile.exists() || segmentFile.length() == 0L) continue
+
                 val extractor = MediaExtractor()
                 try {
                     extractor.setDataSource(segmentFile.absolutePath)
+                    if (extractor.trackCount == 0) continue
 
                     if (firstSegment) {
                         for (i in 0 until extractor.trackCount) {
@@ -280,7 +284,15 @@ class StreamExportManager @Inject constructor(
                             trackMap[i] = muxer.addTrack(format)
                         }
                         muxer.start()
+                        muxerStarted = true
                         firstSegment = false
+                    } else if (!muxerStarted) {
+                        for (i in 0 until extractor.trackCount) {
+                            val format = extractor.getTrackFormat(i)
+                            trackMap[i] = muxer.addTrack(format)
+                        }
+                        muxer.start()
+                        muxerStarted = true
                     }
 
                     for (i in 0 until extractor.trackCount) {
@@ -324,12 +336,16 @@ class StreamExportManager @Inject constructor(
                     if (segFirstPts >= 0 && segLastPts > segFirstPts) {
                         cumulativeDurationUs += segLastPts - segFirstPts
                     }
+                } catch (_: Exception) {
+                    // Skip invalid segment
                 } finally {
                     extractor.release()
                 }
             }
         } finally {
-            muxer.stop()
+            if (muxerStarted) {
+                muxer.stop()
+            }
             muxer.release()
         }
     }
