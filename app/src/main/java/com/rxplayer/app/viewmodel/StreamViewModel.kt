@@ -9,6 +9,8 @@ import androidx.media3.exoplayer.offline.DownloadManager
 import androidx.media3.exoplayer.offline.DownloadRequest
 import com.rxplayer.app.data.db.StreamDao
 import com.rxplayer.app.data.db.StreamEntity
+import com.rxplayer.app.media.ExportState
+import com.rxplayer.app.media.StreamExportManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -36,7 +38,8 @@ data class StreamItem(
 @HiltViewModel
 class StreamViewModel @Inject constructor(
     private val streamDao: StreamDao,
-    private val downloadManager: DownloadManager
+    private val downloadManager: DownloadManager,
+    private val exportManager: StreamExportManager
 ) : ViewModel() {
 
     private val _streams = MutableStateFlow<List<StreamItem>>(emptyList())
@@ -154,6 +157,19 @@ class StreamViewModel @Inject constructor(
                 streamDao.updateVideoInfo(streamId, resolution, codec, frameRate, durationMs)
             }
         }
+    }
+
+    val exportState: StateFlow<ExportState> = exportManager.state
+
+    fun exportStream(streamId: Long, outputUri: Uri) {
+        val stream = _streams.value.find { it.id == streamId } ?: return
+        viewModelScope.launch {
+            exportManager.export(stream.url, outputUri)
+        }
+    }
+
+    fun resetExportState() {
+        exportManager.resetState()
     }
 
     fun cacheStream(streamId: Long) {

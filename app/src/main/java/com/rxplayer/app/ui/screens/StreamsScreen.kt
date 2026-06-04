@@ -2,6 +2,8 @@ package com.rxplayer.app.ui.screens
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -21,6 +23,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material3.AlertDialog
@@ -31,6 +34,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -54,7 +58,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.rxplayer.app.media.ExportState
 import com.rxplayer.app.media.ThumbnailCache
 import com.rxplayer.app.ui.components.CompactTopAppBar
 import com.rxplayer.app.viewmodel.StreamItem
@@ -71,9 +77,33 @@ fun StreamsScreen(
     val streams by viewModel.streams.collectAsState()
     val cachingIds by viewModel.cachingIds.collectAsState()
     val cachingProgress by viewModel.cachingProgress.collectAsState()
+    val exportState by viewModel.exportState.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<StreamItem?>(null) }
     var renameTarget by remember { mutableStateOf<StreamItem?>(null) }
+    var exportTarget by remember { mutableStateOf<StreamItem?>(null) }
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("video/mp4")
+    ) { uri ->
+        if (uri != null && exportTarget != null) {
+            viewModel.exportStream(exportTarget!!.id, uri)
+        }
+        exportTarget = null
+    }
+
+    LaunchedEffect(exportState) {
+        if (exportState is ExportState.Completed || exportState is ExportState.Error) {
+            // auto-dismiss after a delay; dialog handles the display
+        }
+    }
+
+    if (exportState !is ExportState.Idle) {
+        ExportProgressDialog(
+            state = exportState,
+            onDismiss = { viewModel.resetExportState() }
+        )
+    }
 
     if (showAddDialog) {
         AddStreamDialog(
@@ -189,7 +219,11 @@ fun StreamsScreen(
                         },
                         onLongClick = { deleteTarget = stream },
                         onCacheClick = { viewModel.cacheStream(stream.id) },
-                        onRenameClick = { renameTarget = stream }
+                        onRenameClick = { renameTarget = stream },
+                        onExportClick = {
+                            exportTarget = stream
+                            exportLauncher.launch("${stream.name}.mp4")
+                        }
                     )
                 }
             }
@@ -206,7 +240,8 @@ private fun StreamCard(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onCacheClick: () -> Unit,
-    onRenameClick: () -> Unit
+    onRenameClick: () -> Unit,
+    onExportClick: () -> Unit
 ) {
     val context = LocalContext.current
     var thumbnail by remember(stream.url, stream.coverPath) { mutableStateOf<Bitmap?>(null) }
@@ -352,6 +387,13 @@ private fun StreamCard(
                             }
                         )
                         DropdownMenuItem(
+                            text = { Text("导出MP4") },
+                            onClick = {
+                                showMenu = false
+                                onExportClick()
+                            }
+                        )
+                        DropdownMenuItem(
                             text = { Text("属性") },
                             onClick = {
                                 showMenu = false
@@ -414,4 +456,75 @@ private fun AddStreamDialog(
             }
         }
     )
+}
+
+@Composable
+private fun ExportProgressDialog(
+    state: ExportState,
+    onDismiss: () -> Unit
+) {
+    when (state) {
+        is ExportState.Preparing -> {
+            AlertDialog(
+                onDismissRequest = {},
+                title = { Text("导出MP4") },
+                text = {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(modifier = Modifier.size(48.dp))
+                        Text(
+                            text = state.message,
+                            modifier = Modifier.padding(top = 16.dp),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                },
+                confirmButton = {}
+            )
+        }
+        is ExportState.Exporting -> {
+            AlertDialog(
+                onDismissRequest = {},
+                title = { Text("导出MP4") },
+                text = {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        LinearProgressIndicator(
+                            progress = { state.percent / 100f },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text(
+                            text = "${state.percent}%",
+                            modifier = Modifier.padding(top = 8.dp),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                },
+                confirmButton = {}
+            )
+        }
+        is ExportState.Completed -> {
+            AlertDialog(
+                onDismissRequest = onDismiss,
+                title = { Text("导出完成") },
+                text = { Text("MP4文件已成功导出。") },
+                confirmButton = {
+                    TextButton(onClick = onDismiss) {
+                        Text("确定")
+                    }
+                }
+            )
+        }
+        is ExportState.Error -> {
+            AlertDialog(
+                onDismissRequest = onDismiss,
+                title = { Text("导出失败") },
+                text = { Text(state.message) },
+                confirmButton = {
+                    TextButton(onClick = onDismiss) {
+                        Text("关闭")
+                    }
+                }
+            )
+        }
+        is ExportState.Idle -> { /* no dialog */ }
+    }
 }
