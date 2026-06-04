@@ -213,12 +213,13 @@ After every code change, run `./gradlew installDebug` to compile and install, th
 - **Bug fix: `resolveUrl()` compilation error** — Replaced `baseUri.resolve(url)` (ambiguous with `File.resolve()`) with manual path construction via `baseUri.buildUpon().encodedPath(...)` to avoid the `java.io.File` vs `android.net.Uri` method conflict.
 - `resolveUrl()` now strips query/fragment via `buildUpon().clearQuery().fragment(null)` for all resolved URLs (both absolute and relative) to prevent `DataSpec(Uri)` errors.
 
-### Offline HLS Export (v1.0.9)
+### Offline HLS Export (v1.0.9 – v1.0.11)
 - **Pre-cache segment URLs when caching**: `cacheStream()` now also calls `saveSegmentUrlsForStream()` to resolve and persist all HLS segment URLs to a file (`cacheDir/segment_urls/<streamId>`). This avoids re-fetching playlists during export.
 - **Offline export support**: `exportHls()` tries `loadSegmentUrls(streamId)` first — if saved URLs exist, it reads segments directly from `CacheDataSource` (SimpleCache) without needing to fetch playlists from network. Falls back to playlist resolution only if no saved URLs are found.
 - `deleteStream()` also cleans up the corresponding segment URL file.
-- `resolveSegmentUrls()` extracted as a shared method used by both save and export paths.
-- **Bug fix: PTS accumulation in `remuxTsToMp4()`** — Replaced `segmentMaxPts` (absolute max PTS per segment) with per-segment PTS offsetting (`pts - segFirstPts + cumulativeDurationUs`) to prevent large PTS gaps between segments, which caused the output MP4 to show only a frozen frame.
+- **Multi-variant URL saving**: `resolveAllVariantUrls()` resolves ALL variants in the master playlist, not just the first one. Segment URL file stores variant-prefixed URLs (`0|url`, `1|url`). During export, for each segment position, iterates through all variants' URLs until a cache hit is found — this ensures the correct variant (the one cached by `DownloadManager`) is used regardless of which variant was selected during caching.
+- **Direct TS concatenation**: Replaced `MediaMuxer` remuxing with raw TS segment concatenation. This completely eliminates `MediaMuxer.stop()` errors and codec compatibility issues on devices with non-standard MediaCodec implementations (e.g., Huawei). Output file uses `.ts` content (SAF `video/*` MIME type), playable in VLC/MX Player etc.
+- **Robust error handling**: `muxer.stop()`/`release()` wrapped in try-catch. Invalid/empty segment files skipped. Per-segment download failure tolerant (tries next variant).
 
 ### Code Generation & Plugins
 - **KSP** for Room compiler (`room-compiler`) and Hilt compiler (`hilt-compiler`).

@@ -84,7 +84,7 @@ fun StreamsScreen(
     var exportTarget by remember { mutableStateOf<StreamItem?>(null) }
 
     val exportLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("video/mp4")
+        contract = ActivityResultContracts.CreateDocument("video/*")
     ) { uri ->
         if (uri != null && exportTarget != null) {
             viewModel.exportStream(exportTarget!!.id, uri)

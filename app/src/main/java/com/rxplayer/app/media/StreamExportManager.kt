@@ -63,10 +63,13 @@ class StreamExportManager @Inject constructor(
 
     suspend fun saveSegmentUrlsForStream(streamUrl: String, streamId: Long) = withContext(Dispatchers.IO) {
         try {
-            val urls = resolveSegmentUrls(streamUrl)
-            if (urls.isNotEmpty()) {
+            val allVariants = resolveAllVariantUrls(streamUrl)
+            if (allVariants.isNotEmpty()) {
                 val file = File(segmentUrlsDir, streamId.toString())
-                file.writeText(urls.joinToString("\n"))
+                val lines = allVariants.flatMapIndexed { idx, urls ->
+                    urls.map { "$idx|$it" }
+                }
+                file.writeText(lines.joinToString("\n"))
             }
         } catch (_: Exception) {
             // Silently fail — export will fall back to playlist fetching
@@ -77,50 +80,61 @@ class StreamExportManager @Inject constructor(
         File(segmentUrlsDir, streamId.toString()).delete()
     }
 
-    private fun loadSegmentUrls(streamId: Long): List<String>? {
+    private fun loadSegmentUrls(streamId: Long): List<List<String>>? {
         val file = File(segmentUrlsDir, streamId.toString())
         if (!file.exists()) return null
-        return file.readLines().filter { it.isNotBlank() }
+        val lines = file.readLines().filter { it.isNotBlank() }
+        if (lines.isEmpty()) return null
+        // Old single-variant format (no prefix) → wrap as one group
+        if (!lines.first().contains("|")) return listOf(lines)
+        // New multi-variant format
+        val groups = lines.groupBy(
+            keySelector = { it.substringBefore("|") },
+            valueTransform = { it.substringAfter("|") }
+        )
+        val maxSegments = groups.values.maxOf { it.size }
+        return groups.values.filter { it.size == maxSegments }
     }
 
     @WorkerThread
-    private fun resolveSegmentUrls(streamUrl: String): List<String> {
+    private fun resolveAllVariantUrls(streamUrl: String): List<List<String>> {
         var effectiveBaseUrl = streamUrl
         val playlistBytes = fetchPlaylistBytes(effectiveBaseUrl)
         val playlistContent = playlistBytes.decodeToString()
         val parser = HlsPlaylistParser()
         val playlist = parser.parse(Uri.parse(effectiveBaseUrl), ByteArrayInputStream(playlistBytes))
 
-        val mediaPlaylist: HlsMediaPlaylist
         if (playlist is HlsMediaPlaylist) {
-            mediaPlaylist = playlist
-        } else if (playlistContent.contains("#EXT-X-STREAM-INF")) {
-            val lines = playlistContent.lines()
-            var medialUrl: String? = null
-            var i = 0
-            while (i < lines.size && medialUrl == null) {
-                val line = lines[i].trim()
-                if (line.startsWith("#EXT-X-STREAM-INF")) {
-                    var j = i + 1
-                    while (j < lines.size) {
-                        val nextLine = lines[j].trim()
-                        if (nextLine.isNotEmpty() && !nextLine.startsWith("#")) {
-                            medialUrl = nextLine
-                            break
-                        }
-                        j++
-                    }
-                }
-                i++
-            }
-            val absoluteMediaUrl = resolveUrl(effectiveBaseUrl, medialUrl ?: return emptyList())
-            effectiveBaseUrl = absoluteMediaUrl
-            val mediaBytes = fetchPlaylistBytes(effectiveBaseUrl)
-            val resolved = parser.parse(Uri.parse(effectiveBaseUrl), ByteArrayInputStream(mediaBytes))
-            mediaPlaylist = resolved as? HlsMediaPlaylist ?: return emptyList()
-        } else return emptyList()
+            return listOf(playlist.segments.map { resolveUrl(effectiveBaseUrl, it.url) })
+        }
 
-        return mediaPlaylist.segments.map { resolveUrl(effectiveBaseUrl, it.url) }
+        if (!playlistContent.contains("#EXT-X-STREAM-INF")) return emptyList()
+
+        val lines = playlistContent.lines()
+        val mediaUrls = mutableListOf<String>()
+        var i = 0
+        while (i < lines.size) {
+            if (lines[i].trim().startsWith("#EXT-X-STREAM-INF")) {
+                var j = i + 1
+                while (j < lines.size) {
+                    val nextLine = lines[j].trim()
+                    if (nextLine.isNotEmpty() && !nextLine.startsWith("#")) {
+                        mediaUrls.add(resolveUrl(effectiveBaseUrl, nextLine))
+                        break
+                    }
+                    j++
+                }
+            }
+            i++
+        }
+
+        return mediaUrls.mapNotNull { mediaUrl ->
+            try {
+                val mediaBytes = fetchPlaylistBytes(mediaUrl)
+                val resolved = parser.parse(Uri.parse(mediaUrl), ByteArrayInputStream(mediaBytes))
+                (resolved as? HlsMediaPlaylist)?.segments?.map { resolveUrl(mediaUrl, it.url) }
+            } catch (_: Exception) { null }
+        }
     }
 
     private enum class StreamType { HLS, DASH, PROGRESSIVE }
@@ -152,16 +166,16 @@ class StreamExportManager @Inject constructor(
 
     @WorkerThread
     private suspend fun exportHls(baseUrl: String, outputUri: Uri, streamId: Long = -1) = withContext(Dispatchers.IO) {
-        val segmentUrls: List<String>
+        val variantUrlGroups: List<List<String>>
 
         if (streamId >= 0) {
             val saved = loadSegmentUrls(streamId)
             if (saved != null && saved.isNotEmpty()) {
-                segmentUrls = saved
+                variantUrlGroups = saved
             } else {
                 _state.value = ExportState.Preparing("正在解析播放列表...")
-                segmentUrls = try {
-                    resolveSegmentUrls(baseUrl)
+                variantUrlGroups = try {
+                    resolveAllVariantUrls(baseUrl)
                 } catch (e: Exception) {
                     _state.value = ExportState.Error("解析播放列表失败(离线？): ${e.message ?: "未知错误"}")
                     return@withContext
@@ -169,38 +183,59 @@ class StreamExportManager @Inject constructor(
             }
         } else {
             _state.value = ExportState.Preparing("正在解析播放列表...")
-            segmentUrls = try {
-                resolveSegmentUrls(baseUrl)
+            variantUrlGroups = try {
+                resolveAllVariantUrls(baseUrl)
             } catch (e: Exception) {
                 _state.value = ExportState.Error("解析播放列表失败: ${e.message ?: "未知错误"}")
                 return@withContext
             }
         }
 
-        if (segmentUrls.isEmpty()) {
+        if (variantUrlGroups.isEmpty() || variantUrlGroups.all { it.isEmpty() }) {
             _state.value = ExportState.Error("无法获取分片列表")
             return@withContext
         }
 
+        val maxSegments = variantUrlGroups.maxOf { it.size }
         val exportDir = File(context.cacheDir, "export_hls_${System.currentTimeMillis()}")
         exportDir.mkdirs()
         val segmentFiles = mutableListOf<File>()
+        var downloadedCount = 0
 
         try {
-            for ((i, segmentUrl) in segmentUrls.withIndex()) {
-                _state.value = ExportState.Preparing("正在处理分片 ${i + 1}/${segmentUrls.size}...")
-                val tempFile = File(exportDir, "seg_$i.ts")
-                downloadSegmentToFile(segmentUrl, tempFile)
-                segmentFiles.add(tempFile)
-                _state.value = ExportState.Exporting((i + 1) * 90 / segmentUrls.size)
+            for (segIdx in 0 until maxSegments) {
+                val tempFile = File(exportDir, "seg_$segIdx.ts")
+                var downloaded = false
+
+                for (variantUrls in variantUrlGroups) {
+                    if (segIdx >= variantUrls.size) continue
+                    try {
+                        downloadSegmentToFile(variantUrls[segIdx], tempFile)
+                        if (tempFile.exists() && tempFile.length() > 0L) {
+                            downloaded = true
+                            break
+                        }
+                    } catch (_: Exception) { }
+                }
+
+                if (downloaded) {
+                    segmentFiles.add(tempFile)
+                    downloadedCount++
+                    _state.value = ExportState.Preparing("正在处理分片 $downloadedCount/$maxSegments...")
+                    _state.value = ExportState.Exporting(downloadedCount * 90 / maxSegments)
+                }
             }
 
-            _state.value = ExportState.Preparing("正在合成MP4...")
-            val tempMp4 = File(exportDir, "output.mp4")
-            remuxTsToMp4(segmentFiles, tempMp4.absolutePath)
+            if (segmentFiles.isEmpty()) {
+                _state.value = ExportState.Error("无法读取任何分片数据")
+                return@withContext
+            }
 
+            _state.value = ExportState.Preparing("正在合成输出文件...")
             context.contentResolver.openOutputStream(outputUri)?.use { os ->
-                tempMp4.inputStream().use { input -> input.copyTo(os) }
+                for (segFile in segmentFiles) {
+                    segFile.inputStream().use { input -> input.copyTo(os) }
+                }
                 os.flush()
             } ?: throw IllegalStateException("无法打开输出文件")
 
