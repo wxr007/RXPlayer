@@ -87,33 +87,59 @@ class StreamExportManager @Inject constructor(
     }
 
     @WorkerThread
-    private suspend fun exportHls(url: String, outputUri: Uri) = withContext(Dispatchers.IO) {
+    private suspend fun exportHls(baseUrl: String, outputUri: Uri) = withContext(Dispatchers.IO) {
         _state.value = ExportState.Preparing("正在解析播放列表...")
 
-        val playlistBytes = fetchPlaylistBytes(url)
+        var effectiveBaseUrl = baseUrl
+        val playlistBytes = fetchPlaylistBytes(effectiveBaseUrl)
+        val playlistContent = playlistBytes.decodeToString()
         val parser = HlsPlaylistParser()
-        val playlist = parser.parse(Uri.parse(url), ByteArrayInputStream(playlistBytes))
+        val playlist = parser.parse(Uri.parse(effectiveBaseUrl), ByteArrayInputStream(playlistBytes))
 
-        val mediaPlaylist: HlsMediaPlaylist =
-            if (playlist is HlsMediaPlaylist) {
-                playlist
-            } else {
-                _state.value = ExportState.Preparing("正在解析主播放列表...")
-                val variantUrl = resolveFirstVariantUrl(url, playlistBytes)
-                if (variantUrl == null) {
-                    _state.value = ExportState.Error("主播放列表中没有可用的变体流")
+        val mediaPlaylist: HlsMediaPlaylist
+        if (playlist is HlsMediaPlaylist) {
+            mediaPlaylist = playlist
+        } else {
+            if (playlistContent.contains("#EXT-X-STREAM-INF")) {
+                val lines = playlistContent.lines()
+                var mediaPlaylistUrl: String? = null
+                var i = 0
+                while (i < lines.size && mediaPlaylistUrl == null) {
+                    val line = lines[i].trim()
+                    if (line.startsWith("#EXT-X-STREAM-INF")) {
+                        var j = i + 1
+                        while (j < lines.size) {
+                            val nextLine = lines[j].trim()
+                            if (nextLine.isNotEmpty() && !nextLine.startsWith("#")) {
+                                mediaPlaylistUrl = nextLine
+                                break
+                            }
+                            j++
+                        }
+                    }
+                    i++
+                }
+                if (mediaPlaylistUrl == null) {
+                    _state.value = ExportState.Error("无法从主播放列表中解析出媒体播放列表URL")
                     return@withContext
                 }
-                _state.value = ExportState.Preparing("正在解析媒体播放列表...")
-                val variantBytes = fetchPlaylistBytes(variantUrl)
-                val resolved = HlsPlaylistParser().parse(
-                    Uri.parse(variantUrl), ByteArrayInputStream(variantBytes)
+                val absoluteMediaPlaylistUrl = resolveUrl(effectiveBaseUrl, mediaPlaylistUrl)
+                effectiveBaseUrl = absoluteMediaPlaylistUrl
+                val mediaPlaylistBytes = fetchPlaylistBytes(effectiveBaseUrl)
+                val mediaPlaylistParser = HlsPlaylistParser()
+                val resolvedPlaylist = mediaPlaylistParser.parse(
+                    Uri.parse(effectiveBaseUrl), ByteArrayInputStream(mediaPlaylistBytes)
                 )
-                resolved as? HlsMediaPlaylist ?: run {
+                if (resolvedPlaylist !is HlsMediaPlaylist) {
                     _state.value = ExportState.Error("无法解析媒体播放列表")
                     return@withContext
                 }
+                mediaPlaylist = resolvedPlaylist as HlsMediaPlaylist
+            } else {
+                _state.value = ExportState.Error("不支持的播放列表格式")
+                return@withContext
             }
+        }
 
         val segments = mediaPlaylist.segments
         if (segments.isEmpty()) {
@@ -128,7 +154,7 @@ class StreamExportManager @Inject constructor(
         try {
             for ((i, segment) in segments.withIndex()) {
                 _state.value = ExportState.Preparing("正在下载分片 ${i + 1}/${segments.size}...")
-                val segmentUrl = segment.url.toString()
+                val segmentUrl = resolveUrl(effectiveBaseUrl, segment.url)
                 val tempFile = File(exportDir, "seg_$i.ts")
                 downloadSegmentToFile(segmentUrl, tempFile)
                 segmentFiles.add(tempFile)
@@ -150,12 +176,24 @@ class StreamExportManager @Inject constructor(
         }
     }
 
+    private fun resolveUrl(baseUrl: String, url: String): String {
+        if (url.startsWith("http")) {
+            return Uri.parse(url).buildUpon().clearQuery().fragment(null).build().toString()
+        }
+        val baseUri: android.net.Uri = Uri.parse(baseUrl)
+        val resolved = baseUri.buildUpon().encodedPath(
+            (baseUri.encodedPath?.let { p ->
+                (if (p.endsWith("/")) p else p.substringBeforeLast("/") + "/")
+            } ?: "/") + url
+        ).clearQuery().fragment(null).build()
+        return resolved.toString()
+    }
+
     @WorkerThread
     private fun downloadSegmentToFile(url: String, target: File) {
         val dataSource = cacheDataSourceFactory.createDataSource()
         try {
-            // Strip query and fragment to avoid Uri parsing errors
-            val uri = Uri.parse(url).buildUpon().clearQuery().fragment(null).build()
+            val uri = android.net.Uri.parse(url)
             val dataSpec = DataSpec(uri)
             dataSource.open(dataSpec)
             target.outputStream().use { os ->
@@ -174,7 +212,7 @@ class StreamExportManager @Inject constructor(
     private fun fetchPlaylistBytes(url: String): ByteArray {
         val dataSource = cacheDataSourceFactory.createDataSource()
         try {
-            val uri = Uri.parse(url).buildUpon().clearQuery().fragment(null).build()
+            val uri = android.net.Uri.parse(url)
             val dataSpec = DataSpec(uri)
             dataSource.open(dataSpec)
             val baos = ByteArrayOutputStream()
@@ -189,42 +227,9 @@ class StreamExportManager @Inject constructor(
         }
     }
 
-    private fun resolveFirstVariantUrl(playlistUrl: String, playlistBytes: ByteArray): String? {
-        val text = playlistBytes.decodeToString()
-        val lines = text.lines()
-        var inStreamInf = false
-        for (line in lines) {
-            val trimmed = line.trim()
-            if (trimmed.startsWith("#EXT-X-STREAM-INF")) {
-                inStreamInf = true
-                continue
-            }
-            if (inStreamInf && trimmed.isNotEmpty() && !trimmed.startsWith("#")) {
-                return if (trimmed.startsWith("http")) trimmed
-                else {
-                    // Remove any query or fragment from base URL before appending path
-                    val baseUri = Uri.parse(playlistUrl)
-                    val built = baseUri.buildUpon()
-                        .apply {
-                            clearQuery()
-                            fragment(null)
-                        }
-                    val basePath = built.path(
-                            if (baseUri.path?.endsWith("/") == true) baseUri.path
-                            else baseUri.path?.substringBeforeLast("/") ?: ""
-                        )
-                        .build()
-                        .toString()
-                    basePath + "/" + trimmed
-                }
-            }
-        }
-        return null
-    }
-
     @WorkerThread
     private fun remuxTsToMp4(segmentFiles: List<File>, outputPath: String) {
-        val muxer = MediaMuxer(outputPath, 0) // MUXER_OUTPUT_MPEG4
+        val muxer = MediaMuxer(outputPath, 0)
         val trackMap = mutableMapOf<Int, Int>()
         var firstSegment = true
         var baseTimeUs = 0L

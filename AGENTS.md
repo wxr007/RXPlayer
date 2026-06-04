@@ -208,6 +208,11 @@ After every code change, run `./gradlew installDebug` to compile and install, th
 - **Navigation**: Bottom nav "播放列表" replaces old "收藏". Route `Playlists` + `PlaylistDetail(playlistId, playlistName)` with Base64-encoded name.
 - **Cleanup**: Old `FavoritesScreen.kt` and `FavoriteEntity.kt` deleted. `FavoriteEntity::class` removed from AppDatabase entities annotation.
 
+### Stream Export Fixes (v1.0.8)
+- **Bug fix: HLS segment URLs resolved against master playlist instead of media playlist** — `exportHls()` now uses `effectiveBaseUrl` (a local `var`) that gets updated to `absoluteMediaPlaylistUrl` after master→media playlist resolution, so segment URLs are correctly resolved relative to the media playlist location.
+- **Bug fix: `resolveUrl()` compilation error** — Replaced `baseUri.resolve(url)` (ambiguous with `File.resolve()`) with manual path construction via `baseUri.buildUpon().encodedPath(...)` to avoid the `java.io.File` vs `android.net.Uri` method conflict.
+- `resolveUrl()` now strips query/fragment via `buildUpon().clearQuery().fragment(null)` for all resolved URLs (both absolute and relative) to prevent `DataSpec(Uri)` errors.
+
 ### Code Generation & Plugins
 - **KSP** for Room compiler (`room-compiler`) and Hilt compiler (`hilt-compiler`).
 - Kotlin Compose Compiler Plugin (`org.jetbrains.kotlin.plugin.compose`) — no separate compose-compiler version needed with Kotlin 2.1+.
