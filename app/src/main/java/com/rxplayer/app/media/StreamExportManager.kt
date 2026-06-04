@@ -90,7 +90,7 @@ class StreamExportManager @Inject constructor(
     private suspend fun exportHls(url: String, outputUri: Uri) = withContext(Dispatchers.IO) {
         _state.value = ExportState.Preparing("正在解析播放列表...")
 
-        val playlistBytes = fetchBytes(url)
+        val playlistBytes = fetchPlaylistBytes(url)
         val parser = HlsPlaylistParser()
         val playlist = parser.parse(Uri.parse(url), ByteArrayInputStream(playlistBytes))
 
@@ -105,7 +105,7 @@ class StreamExportManager @Inject constructor(
                     return@withContext
                 }
                 _state.value = ExportState.Preparing("正在解析媒体播放列表...")
-                val variantBytes = fetchBytes(variantUrl)
+                val variantBytes = fetchPlaylistBytes(variantUrl)
                 val resolved = HlsPlaylistParser().parse(
                     Uri.parse(variantUrl), ByteArrayInputStream(variantBytes)
                 )
@@ -130,7 +130,7 @@ class StreamExportManager @Inject constructor(
                 _state.value = ExportState.Preparing("正在下载分片 ${i + 1}/${segments.size}...")
                 val segmentUrl = segment.url.toString()
                 val tempFile = File(exportDir, "seg_$i.ts")
-                downloadToFile(segmentUrl, tempFile)
+                downloadSegmentToFile(segmentUrl, tempFile)
                 segmentFiles.add(tempFile)
                 _state.value = ExportState.Exporting((i + 1) * 90 / segments.size)
             }
@@ -151,10 +151,12 @@ class StreamExportManager @Inject constructor(
     }
 
     @WorkerThread
-    private fun downloadToFile(url: String, target: File) {
+    private fun downloadSegmentToFile(url: String, target: File) {
         val dataSource = cacheDataSourceFactory.createDataSource()
         try {
-            val dataSpec = DataSpec(Uri.parse(url))
+            // Strip query and fragment to avoid Uri parsing errors
+            val uri = Uri.parse(url).buildUpon().clearQuery().fragment(null).build()
+            val dataSpec = DataSpec(uri)
             dataSource.open(dataSpec)
             target.outputStream().use { os ->
                 val buf = ByteArray(8192)
@@ -169,10 +171,11 @@ class StreamExportManager @Inject constructor(
     }
 
     @WorkerThread
-    private fun fetchBytes(url: String): ByteArray {
+    private fun fetchPlaylistBytes(url: String): ByteArray {
         val dataSource = cacheDataSourceFactory.createDataSource()
         try {
-            val dataSpec = DataSpec(Uri.parse(url))
+            val uri = Uri.parse(url).buildUpon().clearQuery().fragment(null).build()
+            val dataSpec = DataSpec(uri)
             dataSource.open(dataSpec)
             val baos = ByteArrayOutputStream()
             val buf = ByteArray(8192)
@@ -198,7 +201,22 @@ class StreamExportManager @Inject constructor(
             }
             if (inStreamInf && trimmed.isNotEmpty() && !trimmed.startsWith("#")) {
                 return if (trimmed.startsWith("http")) trimmed
-                else playlistUrl.substringBeforeLast("/") + "/" + trimmed
+                else {
+                    // Remove any query or fragment from base URL before appending path
+                    val baseUri = Uri.parse(playlistUrl)
+                    val built = baseUri.buildUpon()
+                        .apply {
+                            clearQuery()
+                            fragment(null)
+                        }
+                    val basePath = built.path(
+                            if (baseUri.path?.endsWith("/") == true) baseUri.path
+                            else baseUri.path?.substringBeforeLast("/") ?: ""
+                        )
+                        .build()
+                        .toString()
+                    basePath + "/" + trimmed
+                }
             }
         }
         return null
