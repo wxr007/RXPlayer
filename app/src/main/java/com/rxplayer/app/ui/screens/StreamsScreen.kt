@@ -387,7 +387,7 @@ private fun StreamCard(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("导出MP4") },
+                            text = { Text("导出视频") },
                             onClick = {
                                 showMenu = false
                                 onExportClick()
@@ -467,7 +467,7 @@ private fun ExportProgressDialog(
         is ExportState.Preparing -> {
             AlertDialog(
                 onDismissRequest = {},
-                title = { Text("导出MP4") },
+                title = { Text("导出视频") },
                 text = {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         CircularProgressIndicator(modifier = Modifier.size(48.dp))
@@ -484,7 +484,7 @@ private fun ExportProgressDialog(
         is ExportState.Exporting -> {
             AlertDialog(
                 onDismissRequest = {},
-                title = { Text("导出MP4") },
+                title = { Text("导出视频") },
                 text = {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         LinearProgressIndicator(
@@ -505,7 +505,7 @@ private fun ExportProgressDialog(
             AlertDialog(
                 onDismissRequest = onDismiss,
                 title = { Text("导出完成") },
-                text = { Text("MP4文件已成功导出。") },
+                text = { Text("视频文件已成功导出。") },
                 confirmButton = {
                     TextButton(onClick = onDismiss) {
                         Text("确定")
