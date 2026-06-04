@@ -222,7 +222,7 @@ fun StreamsScreen(
                         onRenameClick = { renameTarget = stream },
                         onExportClick = {
                             exportTarget = stream
-                            exportLauncher.launch("${stream.name}.mp4")
+                            exportLauncher.launch("${stream.name}.ts")
                         }
                     )
                 }
