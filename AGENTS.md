@@ -218,6 +218,7 @@ After every code change, run `./gradlew installDebug` to compile and install, th
 - **Offline export support**: `exportHls()` tries `loadSegmentUrls(streamId)` first — if saved URLs exist, it reads segments directly from `CacheDataSource` (SimpleCache) without needing to fetch playlists from network. Falls back to playlist resolution only if no saved URLs are found.
 - `deleteStream()` also cleans up the corresponding segment URL file.
 - `resolveSegmentUrls()` extracted as a shared method used by both save and export paths.
+- **Bug fix: PTS accumulation in `remuxTsToMp4()`** — Replaced `segmentMaxPts` (absolute max PTS per segment) with per-segment PTS offsetting (`pts - segFirstPts + cumulativeDurationUs`) to prevent large PTS gaps between segments, which caused the output MP4 to show only a frozen frame.
 
 ### Code Generation & Plugins
 - **KSP** for Room compiler (`room-compiler`) and Hilt compiler (`hilt-compiler`).

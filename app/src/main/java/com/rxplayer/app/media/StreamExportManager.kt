@@ -266,7 +266,7 @@ class StreamExportManager @Inject constructor(
         val muxer = MediaMuxer(outputPath, 0)
         val trackMap = mutableMapOf<Int, Int>()
         var firstSegment = true
-        var baseTimeUs = 0L
+        var cumulativeDurationUs = 0L
 
         try {
             for (segmentFile in segmentFiles) {
@@ -289,7 +289,8 @@ class StreamExportManager @Inject constructor(
 
                     val bufferInfo = MediaCodec.BufferInfo()
                     val buffer = ByteBuffer.allocate(4 * 1024 * 1024)
-                    var segmentMaxPts = 0L
+                    var segFirstPts = -1L
+                    var segLastPts = -1L
 
                     while (true) {
                         buffer.clear()
@@ -303,6 +304,10 @@ class StreamExportManager @Inject constructor(
                         }
 
                         val pts = extractor.sampleTime
+                        if (segFirstPts < 0) segFirstPts = pts
+                        segLastPts = pts
+
+                        val adjustedPts = pts - segFirstPts + cumulativeDurationUs
                         val trackIdx = extractor.sampleTrackIndex
                         val muxerIdx = trackMap[trackIdx]
                         if (muxerIdx == null) {
@@ -310,15 +315,14 @@ class StreamExportManager @Inject constructor(
                             continue
                         }
 
-                        bufferInfo.set(0, sampleSize, pts + baseTimeUs, flags)
+                        bufferInfo.set(0, sampleSize, adjustedPts, flags)
                         muxer.writeSampleData(muxerIdx, buffer, bufferInfo)
-                        segmentMaxPts = maxOf(segmentMaxPts, pts)
 
                         extractor.advance()
                     }
 
-                    if (segmentMaxPts > 0) {
-                        baseTimeUs += segmentMaxPts
+                    if (segFirstPts >= 0 && segLastPts > segFirstPts) {
+                        cumulativeDurationUs += segLastPts - segFirstPts
                     }
                 } finally {
                     extractor.release()
