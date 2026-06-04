@@ -127,11 +127,17 @@ private fun FolderRow(
     entry: Entry,
     onClick: () -> Unit
 ) {
-    var totalSize by remember(entry.path) { mutableStateOf(-1L) }
+    var folderInfo by remember(entry.path) { mutableStateOf<Pair<Int, Long>?>(null) }
 
     LaunchedEffect(entry.path) {
-        totalSize = withContext(Dispatchers.IO) {
-            File(entry.path).walk().filter { it.isFile }.sumOf { it.length() }
+        folderInfo = withContext(Dispatchers.IO) {
+            var count = 0
+            var total = 0L
+            File(entry.path).walk().filter { it.isFile }.forEach {
+                count++
+                total += it.length()
+            }
+            Pair(count, total)
         }
     }
 
@@ -155,7 +161,8 @@ private fun FolderRow(
                 style = MaterialTheme.typography.bodyMedium
             )
             Text(
-                text = if (totalSize >= 0) formatSize(totalSize) else "计算中...",
+                text = if (folderInfo != null) "${folderInfo!!.first}个文件 · ${formatSize(folderInfo!!.second)}"
+                       else "计算中...",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
             )
