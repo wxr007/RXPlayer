@@ -147,6 +147,7 @@ class StreamViewModel @Inject constructor(
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 streamDao.deleteStreamById(streamId)
+                exportManager.deleteSegmentUrlsForStream(streamId)
             }
         }
     }
@@ -164,12 +165,18 @@ class StreamViewModel @Inject constructor(
     fun exportStream(streamId: Long, outputUri: Uri) {
         val stream = _streams.value.find { it.id == streamId } ?: return
         viewModelScope.launch {
-            exportManager.export(stream.url, outputUri)
+            exportManager.export(stream.url, outputUri, streamId)
         }
     }
 
     fun resetExportState() {
         exportManager.resetState()
+    }
+
+    private fun saveSegmentUrls(streamId: Long, streamUrl: String) {
+        viewModelScope.launch {
+            exportManager.saveSegmentUrlsForStream(streamUrl, streamId)
+        }
     }
 
     fun cacheStream(streamId: Long) {
@@ -190,6 +197,7 @@ class StreamViewModel @Inject constructor(
                 Log.e("RXPlayer", "StreamViewModel addDownload failed for $streamId", e)
             }
             _cachingIds.value = _cachingIds.value + streamId
+            saveSegmentUrls(streamId, stream.url)
         }
     }
 }

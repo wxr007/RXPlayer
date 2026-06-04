@@ -41,22 +41,86 @@ class StreamExportManager @Inject constructor(
     private val _state = MutableStateFlow<ExportState>(ExportState.Idle)
     val state: StateFlow<ExportState> = _state.asStateFlow()
 
+    private val segmentUrlsDir: File get() = File(context.cacheDir, "segment_urls").also { it.mkdirs() }
+
     fun resetState() {
         _state.value = ExportState.Idle
     }
 
-    suspend fun export(url: String, outputUri: Uri) {
+    suspend fun export(url: String, outputUri: Uri, streamId: Long = -1) {
         _state.value = ExportState.Preparing("正在准备导出...")
         try {
             val type = detectType(url)
             when (type) {
-                StreamType.HLS -> exportHls(url, outputUri)
+                StreamType.HLS -> exportHls(url, outputUri, streamId)
                 StreamType.PROGRESSIVE -> exportProgressive(url, outputUri)
                 StreamType.DASH -> _state.value = ExportState.Error("暂不支持DASH导出")
             }
         } catch (e: Exception) {
             _state.value = ExportState.Error("导出失败: ${e.message ?: "未知错误"}")
         }
+    }
+
+    suspend fun saveSegmentUrlsForStream(streamUrl: String, streamId: Long) = withContext(Dispatchers.IO) {
+        try {
+            val urls = resolveSegmentUrls(streamUrl)
+            if (urls.isNotEmpty()) {
+                val file = File(segmentUrlsDir, streamId.toString())
+                file.writeText(urls.joinToString("\n"))
+            }
+        } catch (_: Exception) {
+            // Silently fail — export will fall back to playlist fetching
+        }
+    }
+
+    fun deleteSegmentUrlsForStream(streamId: Long) {
+        File(segmentUrlsDir, streamId.toString()).delete()
+    }
+
+    private fun loadSegmentUrls(streamId: Long): List<String>? {
+        val file = File(segmentUrlsDir, streamId.toString())
+        if (!file.exists()) return null
+        return file.readLines().filter { it.isNotBlank() }
+    }
+
+    @WorkerThread
+    private fun resolveSegmentUrls(streamUrl: String): List<String> {
+        var effectiveBaseUrl = streamUrl
+        val playlistBytes = fetchPlaylistBytes(effectiveBaseUrl)
+        val playlistContent = playlistBytes.decodeToString()
+        val parser = HlsPlaylistParser()
+        val playlist = parser.parse(Uri.parse(effectiveBaseUrl), ByteArrayInputStream(playlistBytes))
+
+        val mediaPlaylist: HlsMediaPlaylist
+        if (playlist is HlsMediaPlaylist) {
+            mediaPlaylist = playlist
+        } else if (playlistContent.contains("#EXT-X-STREAM-INF")) {
+            val lines = playlistContent.lines()
+            var medialUrl: String? = null
+            var i = 0
+            while (i < lines.size && medialUrl == null) {
+                val line = lines[i].trim()
+                if (line.startsWith("#EXT-X-STREAM-INF")) {
+                    var j = i + 1
+                    while (j < lines.size) {
+                        val nextLine = lines[j].trim()
+                        if (nextLine.isNotEmpty() && !nextLine.startsWith("#")) {
+                            medialUrl = nextLine
+                            break
+                        }
+                        j++
+                    }
+                }
+                i++
+            }
+            val absoluteMediaUrl = resolveUrl(effectiveBaseUrl, medialUrl ?: return emptyList())
+            effectiveBaseUrl = absoluteMediaUrl
+            val mediaBytes = fetchPlaylistBytes(effectiveBaseUrl)
+            val resolved = parser.parse(Uri.parse(effectiveBaseUrl), ByteArrayInputStream(mediaBytes))
+            mediaPlaylist = resolved as? HlsMediaPlaylist ?: return emptyList()
+        } else return emptyList()
+
+        return mediaPlaylist.segments.map { resolveUrl(effectiveBaseUrl, it.url) }
     }
 
     private enum class StreamType { HLS, DASH, PROGRESSIVE }
@@ -87,63 +151,34 @@ class StreamExportManager @Inject constructor(
     }
 
     @WorkerThread
-    private suspend fun exportHls(baseUrl: String, outputUri: Uri) = withContext(Dispatchers.IO) {
-        _state.value = ExportState.Preparing("正在解析播放列表...")
+    private suspend fun exportHls(baseUrl: String, outputUri: Uri, streamId: Long = -1) = withContext(Dispatchers.IO) {
+        val segmentUrls: List<String>
 
-        var effectiveBaseUrl = baseUrl
-        val playlistBytes = fetchPlaylistBytes(effectiveBaseUrl)
-        val playlistContent = playlistBytes.decodeToString()
-        val parser = HlsPlaylistParser()
-        val playlist = parser.parse(Uri.parse(effectiveBaseUrl), ByteArrayInputStream(playlistBytes))
-
-        val mediaPlaylist: HlsMediaPlaylist
-        if (playlist is HlsMediaPlaylist) {
-            mediaPlaylist = playlist
-        } else {
-            if (playlistContent.contains("#EXT-X-STREAM-INF")) {
-                val lines = playlistContent.lines()
-                var mediaPlaylistUrl: String? = null
-                var i = 0
-                while (i < lines.size && mediaPlaylistUrl == null) {
-                    val line = lines[i].trim()
-                    if (line.startsWith("#EXT-X-STREAM-INF")) {
-                        var j = i + 1
-                        while (j < lines.size) {
-                            val nextLine = lines[j].trim()
-                            if (nextLine.isNotEmpty() && !nextLine.startsWith("#")) {
-                                mediaPlaylistUrl = nextLine
-                                break
-                            }
-                            j++
-                        }
-                    }
-                    i++
-                }
-                if (mediaPlaylistUrl == null) {
-                    _state.value = ExportState.Error("无法从主播放列表中解析出媒体播放列表URL")
-                    return@withContext
-                }
-                val absoluteMediaPlaylistUrl = resolveUrl(effectiveBaseUrl, mediaPlaylistUrl)
-                effectiveBaseUrl = absoluteMediaPlaylistUrl
-                val mediaPlaylistBytes = fetchPlaylistBytes(effectiveBaseUrl)
-                val mediaPlaylistParser = HlsPlaylistParser()
-                val resolvedPlaylist = mediaPlaylistParser.parse(
-                    Uri.parse(effectiveBaseUrl), ByteArrayInputStream(mediaPlaylistBytes)
-                )
-                if (resolvedPlaylist !is HlsMediaPlaylist) {
-                    _state.value = ExportState.Error("无法解析媒体播放列表")
-                    return@withContext
-                }
-                mediaPlaylist = resolvedPlaylist as HlsMediaPlaylist
+        if (streamId >= 0) {
+            val saved = loadSegmentUrls(streamId)
+            if (saved != null && saved.isNotEmpty()) {
+                segmentUrls = saved
             } else {
-                _state.value = ExportState.Error("不支持的播放列表格式")
+                _state.value = ExportState.Preparing("正在解析播放列表...")
+                segmentUrls = try {
+                    resolveSegmentUrls(baseUrl)
+                } catch (e: Exception) {
+                    _state.value = ExportState.Error("解析播放列表失败(离线？): ${e.message ?: "未知错误"}")
+                    return@withContext
+                }
+            }
+        } else {
+            _state.value = ExportState.Preparing("正在解析播放列表...")
+            segmentUrls = try {
+                resolveSegmentUrls(baseUrl)
+            } catch (e: Exception) {
+                _state.value = ExportState.Error("解析播放列表失败: ${e.message ?: "未知错误"}")
                 return@withContext
             }
         }
 
-        val segments = mediaPlaylist.segments
-        if (segments.isEmpty()) {
-            _state.value = ExportState.Error("播放列表中没有分片")
+        if (segmentUrls.isEmpty()) {
+            _state.value = ExportState.Error("无法获取分片列表")
             return@withContext
         }
 
@@ -152,13 +187,12 @@ class StreamExportManager @Inject constructor(
         val segmentFiles = mutableListOf<File>()
 
         try {
-            for ((i, segment) in segments.withIndex()) {
-                _state.value = ExportState.Preparing("正在下载分片 ${i + 1}/${segments.size}...")
-                val segmentUrl = resolveUrl(effectiveBaseUrl, segment.url)
+            for ((i, segmentUrl) in segmentUrls.withIndex()) {
+                _state.value = ExportState.Preparing("正在处理分片 ${i + 1}/${segmentUrls.size}...")
                 val tempFile = File(exportDir, "seg_$i.ts")
                 downloadSegmentToFile(segmentUrl, tempFile)
                 segmentFiles.add(tempFile)
-                _state.value = ExportState.Exporting((i + 1) * 90 / segments.size)
+                _state.value = ExportState.Exporting((i + 1) * 90 / segmentUrls.size)
             }
 
             _state.value = ExportState.Preparing("正在合成MP4...")

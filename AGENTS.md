@@ -213,6 +213,12 @@ After every code change, run `./gradlew installDebug` to compile and install, th
 - **Bug fix: `resolveUrl()` compilation error** — Replaced `baseUri.resolve(url)` (ambiguous with `File.resolve()`) with manual path construction via `baseUri.buildUpon().encodedPath(...)` to avoid the `java.io.File` vs `android.net.Uri` method conflict.
 - `resolveUrl()` now strips query/fragment via `buildUpon().clearQuery().fragment(null)` for all resolved URLs (both absolute and relative) to prevent `DataSpec(Uri)` errors.
 
+### Offline HLS Export (v1.0.9)
+- **Pre-cache segment URLs when caching**: `cacheStream()` now also calls `saveSegmentUrlsForStream()` to resolve and persist all HLS segment URLs to a file (`cacheDir/segment_urls/<streamId>`). This avoids re-fetching playlists during export.
+- **Offline export support**: `exportHls()` tries `loadSegmentUrls(streamId)` first — if saved URLs exist, it reads segments directly from `CacheDataSource` (SimpleCache) without needing to fetch playlists from network. Falls back to playlist resolution only if no saved URLs are found.
+- `deleteStream()` also cleans up the corresponding segment URL file.
+- `resolveSegmentUrls()` extracted as a shared method used by both save and export paths.
+
 ### Code Generation & Plugins
 - **KSP** for Room compiler (`room-compiler`) and Hilt compiler (`hilt-compiler`).
 - Kotlin Compose Compiler Plugin (`org.jetbrains.kotlin.plugin.compose`) — no separate compose-compiler version needed with Kotlin 2.1+.
