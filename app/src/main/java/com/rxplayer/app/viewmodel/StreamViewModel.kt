@@ -146,8 +146,15 @@ class StreamViewModel @Inject constructor(
     fun deleteStream(streamId: Long) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                streamDao.deleteStreamById(streamId)
+                val stream = _streams.value.find { it.id == streamId }
+                try {
+                    downloadManager.removeDownload(streamId.toString())
+                } catch (_: Exception) { }
+                if (stream != null) {
+                    exportManager.clearCacheForStream(streamId, stream.url)
+                }
                 exportManager.deleteSegmentUrlsForStream(streamId)
+                streamDao.deleteStreamById(streamId)
             }
         }
     }

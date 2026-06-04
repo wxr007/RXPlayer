@@ -9,6 +9,7 @@ import androidx.annotation.WorkerThread
 import androidx.media3.common.C
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
+import androidx.media3.datasource.cache.Cache
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.exoplayer.hls.playlist.HlsMediaPlaylist
 import androidx.media3.exoplayer.hls.playlist.HlsPlaylistParser
@@ -36,7 +37,8 @@ sealed class ExportState {
 @Singleton
 class StreamExportManager @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val cacheDataSourceFactory: CacheDataSource.Factory
+    private val cacheDataSourceFactory: CacheDataSource.Factory,
+    private val cache: Cache
 ) {
     private val _state = MutableStateFlow<ExportState>(ExportState.Idle)
     val state: StateFlow<ExportState> = _state.asStateFlow()
@@ -58,6 +60,17 @@ class StreamExportManager @Inject constructor(
             }
         } catch (e: Exception) {
             _state.value = ExportState.Error("导出失败: ${e.message ?: "未知错误"}")
+        }
+    }
+
+    fun clearCacheForStream(streamId: Long, streamUrl: String) {
+        try {
+            cache.removeResource(streamUrl)
+        } catch (_: Exception) { }
+        loadSegmentUrls(streamId)?.forEach { variantUrls ->
+            variantUrls.forEach { url ->
+                try { cache.removeResource(url) } catch (_: Exception) { }
+            }
         }
     }
 

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.media3.database.ExoDatabaseProvider
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.cache.Cache
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
@@ -44,6 +45,10 @@ object CacheModule {
     fun provideUpstreamDataSourceFactory(@ApplicationContext context: Context): DataSource.Factory {
         return DefaultDataSource.Factory(context)
     }
+
+    @Provides
+    @Singleton
+    fun provideCache(cache: SimpleCache): Cache = cache
 
     @Provides
     @Singleton
