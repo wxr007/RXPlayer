@@ -127,8 +127,12 @@ private fun FolderRow(
     entry: Entry,
     onClick: () -> Unit
 ) {
-    val subFiles = remember(entry.path) {
-        File(entry.path).listFiles()?.filter { it.isFile } ?: emptyList()
+    var totalSize by remember(entry.path) { mutableStateOf(-1L) }
+
+    LaunchedEffect(entry.path) {
+        totalSize = withContext(Dispatchers.IO) {
+            File(entry.path).walk().filter { it.isFile }.sumOf { it.length() }
+        }
     }
 
     Row(
@@ -151,7 +155,7 @@ private fun FolderRow(
                 style = MaterialTheme.typography.bodyMedium
             )
             Text(
-                text = "${subFiles.size}个文件",
+                text = if (totalSize >= 0) formatSize(totalSize) else "计算中...",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
             )
