@@ -343,10 +343,12 @@ class StreamExportManager @Inject constructor(
                 }
             }
         } finally {
-            if (muxerStarted) {
-                muxer.stop()
-            }
-            muxer.release()
+            try {
+                if (muxerStarted) muxer.stop()
+            } catch (_: Exception) { }
+            try {
+                muxer.release()
+            } catch (_: Exception) { }
         }
     }
 }
