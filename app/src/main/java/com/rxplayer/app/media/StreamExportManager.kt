@@ -94,13 +94,26 @@ class StreamExportManager @Inject constructor(
         val parser = HlsPlaylistParser()
         val playlist = parser.parse(Uri.parse(url), ByteArrayInputStream(playlistBytes))
 
-        val mediaPlaylist: HlsMediaPlaylist = when (playlist) {
-            is HlsMediaPlaylist -> playlist
-            else -> {
-                _state.value = ExportState.Error("不支持的主播放列表，请直接使用媒体播放列表URL")
-                return@withContext
+        val mediaPlaylist: HlsMediaPlaylist =
+            if (playlist is HlsMediaPlaylist) {
+                playlist
+            } else {
+                _state.value = ExportState.Preparing("正在解析主播放列表...")
+                val variantUrl = resolveFirstVariantUrl(url, playlistBytes)
+                if (variantUrl == null) {
+                    _state.value = ExportState.Error("主播放列表中没有可用的变体流")
+                    return@withContext
+                }
+                _state.value = ExportState.Preparing("正在解析媒体播放列表...")
+                val variantBytes = fetchBytes(variantUrl)
+                val resolved = HlsPlaylistParser().parse(
+                    Uri.parse(variantUrl), ByteArrayInputStream(variantBytes)
+                )
+                resolved as? HlsMediaPlaylist ?: run {
+                    _state.value = ExportState.Error("无法解析媒体播放列表")
+                    return@withContext
+                }
             }
-        }
 
         val segments = mediaPlaylist.segments
         if (segments.isEmpty()) {
@@ -171,6 +184,24 @@ class StreamExportManager @Inject constructor(
         } finally {
             dataSource.close()
         }
+    }
+
+    private fun resolveFirstVariantUrl(playlistUrl: String, playlistBytes: ByteArray): String? {
+        val text = playlistBytes.decodeToString()
+        val lines = text.lines()
+        var inStreamInf = false
+        for (line in lines) {
+            val trimmed = line.trim()
+            if (trimmed.startsWith("#EXT-X-STREAM-INF")) {
+                inStreamInf = true
+                continue
+            }
+            if (inStreamInf && trimmed.isNotEmpty() && !trimmed.startsWith("#")) {
+                return if (trimmed.startsWith("http")) trimmed
+                else playlistUrl.substringBeforeLast("/") + "/" + trimmed
+            }
+        }
+        return null
     }
 
     @WorkerThread
