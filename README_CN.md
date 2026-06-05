@@ -1,3 +1,5 @@
+**中文** | [**English**](README.md)
+
 # RXPlayer
 
 基于 Jetpack Compose、ExoPlayer 和 Material 3 的功能丰富的 Android 视频播放器。

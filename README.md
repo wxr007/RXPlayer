@@ -1,3 +1,5 @@
+[**中文**](README_CN.md) | **English**
+
 # RXPlayer
 
 A feature-rich Android video player app built with Jetpack Compose, ExoPlayer, and Material 3.
