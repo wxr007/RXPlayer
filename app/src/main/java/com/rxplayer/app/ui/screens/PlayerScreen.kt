@@ -13,6 +13,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.horizontalScroll
@@ -62,11 +63,15 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -140,6 +145,7 @@ fun PlayerScreen(
     var showCenterIcon by remember { mutableStateOf(false) }
     var showSeekIndicator by remember { mutableStateOf("") }
     var sliderProgress by remember { mutableFloatStateOf(0f) }
+    var bufferedProgress by remember { mutableFloatStateOf(0f) }
     var isDraggingSlider by remember { mutableStateOf(false) }
     var isDraggingTimeline by remember { mutableStateOf(false) }
     val timelineLazyListState = rememberLazyListState()
@@ -312,6 +318,7 @@ fun PlayerScreen(
             totalDuration = player.duration.coerceAtLeast(0)
             if (!isDraggingSlider && totalDuration > 0) {
                 sliderProgress = currentPosition.toFloat() / totalDuration
+                bufferedProgress = player.bufferedPosition.toFloat() / totalDuration
             }
             val fmt = player.videoFormat
             if (fmt != null) {
@@ -624,8 +631,9 @@ fun PlayerScreen(
                 }
 
                 if (isFullScreen && showOverlay) {
-                    Slider(
+                    VideoSeekBar(
                         value = sliderProgress,
+                        bufferedValue = bufferedProgress,
                         onValueChange = { ratio ->
                             isDraggingSlider = true
                             sliderProgress = ratio
@@ -639,48 +647,10 @@ fun PlayerScreen(
                             .fillMaxWidth()
                             .padding(horizontal = 64.dp)
                             .align(Alignment.BottomCenter),
-                        colors = SliderDefaults.colors(
-                            thumbColor = Color.Transparent,
-                            activeTrackColor = Color.Transparent,
-                            inactiveTrackColor = Color.Transparent
-                        ),
-                        thumb = {
-                            Canvas(modifier = Modifier.size(20.dp)) {
-                                drawCircle(color = Color.White)
-                            }
-                        },
-                        track = { sliderState ->
-                            Canvas(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(10.dp)
-                            ) {
-                                val trackHeight = 10.dp.toPx()
-                                val trackCornerRadius = trackHeight / 2
-                                val thumbRadius = 10.dp.toPx()
-                                val fullTrackWidth = size.width + 2 * thumbRadius
-                                val activeWidth = (sliderState.value * fullTrackWidth).coerceIn(0f, fullTrackWidth)
-
-                                drawRoundRect(
-                                    color = Color.White.copy(alpha = 0.2f),
-                                    topLeft = androidx.compose.ui.geometry.Offset(-thumbRadius, 0f),
-                                    size = androidx.compose.ui.geometry.Size(width = fullTrackWidth, height = trackHeight),
-                                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(trackCornerRadius)
-                                )
-
-                                if (activeWidth > 0) {
-                                    drawRoundRect(
-                                        color = Color.White.copy(alpha = 0.8f),
-                                        topLeft = androidx.compose.ui.geometry.Offset(-thumbRadius, 0f),
-                                        size = androidx.compose.ui.geometry.Size(
-                                            width = activeWidth,
-                                            height = trackHeight
-                                        ),
-                                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(trackCornerRadius)
-                                    )
-                                }
-                            }
-                        }
+                        playedColor = Color.White.copy(alpha = 0.8f),
+                        bufferedColor = Color.White.copy(alpha = 0.4f),
+                        unplayedColor = Color.White.copy(alpha = 0.2f),
+                        thumbColor = Color.White
                     )
                 }
 
@@ -736,8 +706,9 @@ fun PlayerScreen(
                         modifier = Modifier.padding(end = 8.dp)
                     )
 
-                    Slider(
+                    VideoSeekBar(
                         value = sliderProgress,
+                        bufferedValue = bufferedProgress,
                         onValueChange = { ratio ->
                             isDraggingSlider = true
                             sliderProgress = ratio
@@ -746,51 +717,11 @@ fun PlayerScreen(
                         onValueChangeFinished = {
                             isDraggingSlider = false
                         },
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(vertical = 8.dp),
-                        colors = SliderDefaults.colors(
-                            thumbColor = Color.Transparent,
-                            activeTrackColor = Color.Transparent,
-                            inactiveTrackColor = Color.Transparent
-                        ),
-                        thumb = {
-                            Canvas(modifier = Modifier.size(28.dp)) {
-                                drawCircle(color = Color(0xFF5D4037))
-                            }
-                        },
-                        track = { sliderState ->
-                            Canvas(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(10.dp)
-                            ) {
-                                val trackHeight = 10.dp.toPx()
-                                val trackCornerRadius = trackHeight / 2
-                                val thumbRadius = 14.dp.toPx()
-                                val fullTrackWidth = size.width + 2 * thumbRadius
-                                val activeWidth = (sliderState.value * fullTrackWidth).coerceIn(0f, fullTrackWidth)
-
-                                drawRoundRect(
-                                    color = Color(0xFFD7CCC8),
-                                    topLeft = androidx.compose.ui.geometry.Offset(-thumbRadius, 0f),
-                                    size = androidx.compose.ui.geometry.Size(width = fullTrackWidth, height = trackHeight),
-                                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(trackCornerRadius)
-                                )
-
-                                if (activeWidth > 0) {
-                                    drawRoundRect(
-                                        color = Color(0xFF5D4037),
-                                        topLeft = androidx.compose.ui.geometry.Offset(-thumbRadius, 0f),
-                                        size = androidx.compose.ui.geometry.Size(
-                                            width = activeWidth,
-                                            height = trackHeight
-                                        ),
-                                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(trackCornerRadius)
-                                    )
-                                }
-                            }
-                        }
+                        modifier = Modifier.weight(1f),
+                        playedColor = Color(0xFF5D4037),
+                        bufferedColor = Color(0xFF8D6E63),
+                        unplayedColor = Color(0xFFD7CCC8),
+                        thumbColor = Color(0xFF5D4037)
                     )
 
                     Text(
@@ -971,6 +902,96 @@ private fun getDecoderType(decoderName: String): String {
         if (info?.isSoftwareOnly == true) "软解码" else "硬件解码"
     } else {
         if (decoderName.startsWith("OMX.google.", ignoreCase = true)) "软解码" else "硬件解码"
+    }
+}
+
+@Composable
+private fun VideoSeekBar(
+    value: Float,
+    bufferedValue: Float,
+    onValueChange: (Float) -> Unit,
+    onValueChangeFinished: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+    trackHeight: androidx.compose.ui.unit.Dp = 6.dp,
+    thumbRadius: androidx.compose.ui.unit.Dp = 7.dp,
+    playedColor: Color,
+    bufferedColor: Color,
+    unplayedColor: Color,
+    thumbColor: Color
+) {
+    val currentOnValueChange by rememberUpdatedState(onValueChange)
+    val currentOnValueChangeFinished by rememberUpdatedState(onValueChangeFinished)
+
+    Box(modifier = modifier.height(thumbRadius * 2)) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(thumbRadius * 2)
+                .pointerInput(Unit) {
+                    detectTapGestures { offset ->
+                        val newValue = (offset.x / size.width).coerceIn(0f, 1f)
+                        currentOnValueChange(newValue)
+                        currentOnValueChangeFinished(newValue)
+                    }
+                }
+                .pointerInput(Unit) {
+                    var lastDragValue = value
+                    detectHorizontalDragGestures(
+                        onDragStart = { offset ->
+                            val newValue = (offset.x / size.width).coerceIn(0f, 1f)
+                            currentOnValueChange(newValue)
+                            lastDragValue = newValue
+                        },
+                        onHorizontalDrag = { change, _ ->
+                            val newValue = (change.position.x / size.width).coerceIn(0f, 1f)
+                            currentOnValueChange(newValue)
+                            lastDragValue = newValue
+                        },
+                        onDragEnd = {
+                            currentOnValueChangeFinished(lastDragValue)
+                        }
+                    )
+                }
+        ) {
+            val trackHeightPx = trackHeight.toPx()
+            val thumbRadiusPx = thumbRadius.toPx()
+            val centerY = size.height / 2
+            val cornerRadiusPx = trackHeightPx / 2
+
+            // Unplayed track (full width)
+            drawRoundRect(
+                color = unplayedColor,
+                topLeft = Offset(0f, centerY - trackHeightPx / 2),
+                size = Size(size.width, trackHeightPx),
+                cornerRadius = CornerRadius(cornerRadiusPx)
+            )
+
+            // Buffered track
+            if (bufferedValue > 0f) {
+                drawRoundRect(
+                    color = bufferedColor,
+                    topLeft = Offset(0f, centerY - trackHeightPx / 2),
+                    size = Size(size.width * bufferedValue, trackHeightPx),
+                    cornerRadius = CornerRadius(cornerRadiusPx)
+                )
+            }
+
+            // Played track (on top)
+            drawRoundRect(
+                color = playedColor,
+                topLeft = Offset(0f, centerY - trackHeightPx / 2),
+                size = Size(size.width * value, trackHeightPx),
+                cornerRadius = CornerRadius(cornerRadiusPx)
+            )
+
+            // Thumb circle
+            val thumbX = size.width * value
+            drawCircle(
+                color = thumbColor,
+                radius = thumbRadiusPx,
+                center = Offset(thumbX, centerY)
+            )
+        }
     }
 }
 
