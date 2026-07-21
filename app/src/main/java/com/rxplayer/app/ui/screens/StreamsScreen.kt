@@ -223,7 +223,8 @@ fun StreamsScreen(
                         onExportClick = {
                             exportTarget = stream
                             exportLauncher.launch("${stream.name}.ts")
-                        }
+                        },
+                        onDeleteClick = { deleteTarget = stream }
                     )
                 }
             }
@@ -241,7 +242,8 @@ private fun StreamCard(
     onLongClick: () -> Unit,
     onCacheClick: () -> Unit,
     onRenameClick: () -> Unit,
-    onExportClick: () -> Unit
+    onExportClick: () -> Unit,
+    onDeleteClick: () -> Unit
 ) {
     val context = LocalContext.current
     var thumbnail by remember(stream.url, stream.coverPath) { mutableStateOf<Bitmap?>(null) }
@@ -398,6 +400,13 @@ private fun StreamCard(
                             onClick = {
                                 showMenu = false
                                 showProperties = true
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("删除", color = MaterialTheme.colorScheme.error) },
+                            onClick = {
+                                showMenu = false
+                                onDeleteClick()
                             }
                         )
                     }
