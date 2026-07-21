@@ -181,7 +181,7 @@ fun RXPlayerNavHost() {
             composable(Route.FileBrowser.route) {
                 val context = LocalContext.current
                 FileBrowserScreen(
-                    startPath = context.cacheDir.absolutePath,
+                    startPath = context.filesDir.absolutePath,
                     onBack = { navController.popBackStack() }
                 )
             }
