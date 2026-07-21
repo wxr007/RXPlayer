@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -83,6 +84,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.documentfile.provider.DocumentFile
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -121,6 +123,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -294,6 +299,7 @@ fun PlayerScreen(
     val cacheProgress by viewModel.cacheProgress.collectAsState()
     val isCached by viewModel.isCached.collectAsState()
     val cacheError by viewModel.cacheError.collectAsState()
+    val screenshotPath by viewModel.screenshotPath.collectAsState()
 
     LaunchedEffect(cacheError) {
         cacheError?.let {
@@ -620,6 +626,52 @@ fun PlayerScreen(
                             .align(Alignment.TopEnd)
                             .padding(8.dp)
                     ) {
+                        IconButton(onClick = {
+                            scope.launch {
+                                val path = screenshotPath
+                                if (path.isEmpty()) {
+                                    snackbarHostState.showSnackbar("请先在设置中配置截图保存路径")
+                                    return@launch
+                                }
+                                try {
+                                    val textureView = playerViewRef?.videoSurfaceView as? TextureView
+                                    if (textureView == null) {
+                                        snackbarHostState.showSnackbar("截图失败")
+                                        return@launch
+                                    }
+                                    val bitmap = withContext(Dispatchers.IO) {
+                                        textureView.getBitmap() ?: return@withContext null
+                                    } ?: run {
+                                        snackbarHostState.showSnackbar("截图失败")
+                                        return@launch
+                                    }
+                                    val saved = withContext(Dispatchers.IO) {
+                                        val treeUri = Uri.parse(path)
+                                        val docDir = DocumentFile.fromTreeUri(context, treeUri)
+                                            ?: return@withContext false
+                                        val sdf = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
+                                        val fileName = "RXPlayer_${sdf.format(Date())}.jpg"
+                                        val file = docDir.createFile("image/jpeg", fileName)
+                                            ?: return@withContext false
+                                        context.contentResolver.openOutputStream(file.uri)?.use { out ->
+                                            bitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
+                                        } ?: return@withContext false
+                                        true
+                                    }
+                                    snackbarHostState.showSnackbar(
+                                        if (saved) "截图已保存" else "截图保存失败"
+                                    )
+                                } catch (e: Exception) {
+                                    snackbarHostState.showSnackbar("截图失败: ${e.message}")
+                                }
+                            }
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.PhotoCamera,
+                                contentDescription = "截图",
+                                tint = Color.White
+                            )
+                        }
                         IconButton(onClick = toggleFullScreen) {
                             Icon(
                                 imageVector = Icons.Default.FullscreenExit,

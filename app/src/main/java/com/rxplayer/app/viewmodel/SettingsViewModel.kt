@@ -15,6 +15,7 @@ class SettingsViewModel @Inject constructor(
     val autoPlay: StateFlow<Boolean> = settingsManager.autoPlay
     val seekStep: StateFlow<Int> = settingsManager.seekStep
     val resolutionDisplay: StateFlow<String> = settingsManager.resolutionDisplay
+    val screenshotPath: StateFlow<String> = settingsManager.screenshotPath
 
     fun setThemeMode(mode: String) {
         settingsManager.setThemeMode(mode)
@@ -30,5 +31,9 @@ class SettingsViewModel @Inject constructor(
 
     fun setResolutionDisplay(mode: String) {
         settingsManager.setResolutionDisplay(mode)
+    }
+
+    fun setScreenshotPath(path: String) {
+        settingsManager.setScreenshotPath(path)
     }
 }

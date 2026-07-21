@@ -31,12 +31,16 @@ class SettingsManager @Inject constructor(
     private val _resolutionDisplay = MutableStateFlow(readResolutionDisplay())
     val resolutionDisplay: StateFlow<String> = _resolutionDisplay
 
+    private val _screenshotPath = MutableStateFlow(readScreenshotPath())
+    val screenshotPath: StateFlow<String> = _screenshotPath
+
     private fun readThemeMode(): String = prefs.getString("theme_mode", "system") ?: "system"
     private fun readAutoPlay(): Boolean = prefs.getBoolean("auto_play", true)
     private fun readAnalysisMode(): String = prefs.getString("analysis_mode", "smart") ?: "smart"
     private fun readAnalysisInterval(): Int = prefs.getInt("analysis_interval", 30)
     private fun readSeekStep(): Int = prefs.getInt("seek_step", 10)
     private fun readResolutionDisplay(): String = prefs.getString("resolution_display", "full") ?: "full"
+    private fun readScreenshotPath(): String = prefs.getString("screenshot_path", "") ?: ""
 
     fun setThemeMode(mode: String) {
         prefs.edit().putString("theme_mode", mode).apply()
@@ -68,5 +72,10 @@ class SettingsManager @Inject constructor(
     fun setResolutionDisplay(mode: String) {
         prefs.edit().putString("resolution_display", mode).apply()
         _resolutionDisplay.value = mode
+    }
+
+    fun setScreenshotPath(path: String) {
+        prefs.edit().putString("screenshot_path", path).apply()
+        _screenshotPath.value = path
     }
 }
