@@ -647,10 +647,10 @@ fun PlayerScreen(
                             .fillMaxWidth()
                             .padding(horizontal = 64.dp)
                             .align(Alignment.BottomCenter),
-                        playedColor = Color.White.copy(alpha = 0.8f),
-                        bufferedColor = Color.White.copy(alpha = 0.4f),
-                        unplayedColor = Color.White.copy(alpha = 0.2f),
-                        thumbColor = Color.White
+                        playedColor = Color(0xFFFF4081).copy(alpha = 0.8f),
+                        bufferedColor = Color(0xFFFF4081).copy(alpha = 0.4f),
+                        unplayedColor = Color(0xFFFF4081).copy(alpha = 0.2f),
+                        thumbColor = Color(0xFFFF4081)
                     )
                 }
 
@@ -718,10 +718,10 @@ fun PlayerScreen(
                             isDraggingSlider = false
                         },
                         modifier = Modifier.weight(1f),
-                        playedColor = Color(0xFF5D4037),
-                        bufferedColor = Color(0xFF8D6E63),
-                        unplayedColor = Color(0xFFD7CCC8),
-                        thumbColor = Color(0xFF5D4037)
+                        playedColor = Color(0xFFFF4081),
+                        bufferedColor = Color(0xFFFF4081).copy(alpha = 0.5f),
+                        unplayedColor = Color(0xFFFF4081).copy(alpha = 0.2f),
+                        thumbColor = Color(0xFFFF4081)
                     )
 
                     Text(
