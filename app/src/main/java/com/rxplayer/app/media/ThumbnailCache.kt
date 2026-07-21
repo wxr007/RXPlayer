@@ -21,7 +21,7 @@ import java.nio.ByteBuffer
 
 class ThumbnailCache(private val context: Context) {
 
-    private val cacheDir = File(context.cacheDir, "video_thumbnails")
+    private val cacheDir = File(context.filesDir, "video_thumbnails")
 
     init {
         cacheDir.mkdirs()

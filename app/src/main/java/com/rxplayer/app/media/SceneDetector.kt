@@ -14,7 +14,7 @@ class SceneDetector(private val context: Context) {
 
     private fun cacheDirFor(uri: Uri): File {
         val key = uri.toString().hashCode().toUInt().toString(16)
-        return File(context.cacheDir, "scene_thumbnails/$key")
+        return File(context.filesDir, "scene_thumbnails/$key")
     }
 
     suspend fun detectScenes(
