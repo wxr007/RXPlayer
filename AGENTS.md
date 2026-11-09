@@ -224,3 +224,11 @@ After every code change, run `./gradlew installDebug` to compile and install, th
 ### Code Generation & Plugins
 - **KSP** for Room compiler (`room-compiler`) and Hilt compiler (`hilt-compiler`).
 - Kotlin Compose Compiler Plugin (`org.jetbrains.kotlin.plugin.compose`) — no separate compose-compiler version needed with Kotlin 2.1+.
+
+### CI / GitHub Actions (v1.0.16)
+- 新增 `.github/workflows/build.yml`，参照 `huaguoshan/.github/workflows/build.yml` 骨架：push（main/master、`v*` 标签）/ PR / `workflow_dispatch` 触发，`permissions: contents: read`，`concurrency` 按 workflow+ref 去重并取消进行中的旧构建。
+- `checks` job（仅 PR / 手动）：`./gradlew lintDebug`，`continue-on-error: true` —— 项目暂无测试基础设施，检查不阻断出包。
+- `android` job：Temurin JDK 17 + `android-actions/setup-android@v3` + `platforms;android-36` / `build-tools;35.0.0` + `gradle/actions/setup-gradle@v4` 缓存，执行 `./gradlew assembleDebug --stacktrace`，上传 `app/build/outputs/apk/debug/*.apk` 为 `RXPlayer-android`（保留 14 天，`if-no-files-found: error`）。
+- CI 内用 `sed` 把 wrapper 的腾讯云 Gradle 镜像临时换成 `services.gradle.org`，只改 Runner 上的副本，仓库 `gradle-wrapper.properties` 保持国内镜像不变。
+- 修正 `gradlew` 的 git 文件模式为 `100755`，保证 Linux Runner 上能直接执行 `./gradlew`。
+- 未包含 release 签名与自动发布 Release（参考项目的 `publish-release.yml` 为独立手动工作流）；如需可后续扩展。
