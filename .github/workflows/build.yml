@@ -61,12 +61,58 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Use official Gradle distribution on CI
         run: sed -i 's|mirrors.cloud.tencent.com/gradle/|services.gradle.org/distributions/|' gradle/wrapper/gradle-wrapper.properties
-      - name: Build debug APK
-        run: ./gradlew assembleDebug --stacktrace
+      - name: Read app version
+        id: version
+        run: |
+          VERSION_NAME=$(sed -n 's/^[[:space:]]*versionName = "\(.*\)"$/\1/p' app/build.gradle.kts | head -1)
+          test -n "$VERSION_NAME"
+          echo "name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "App version: $VERSION_NAME"
+      - name: Build debug and release APKs
+        run: ./gradlew assembleDebug assembleRelease --stacktrace
+      - name: Sign release APK with CI keystore
+        # 项目未配置正式签名；复用 Gradle 生成的 debug keystore（没有则现场生成），让 release 包可直接安装。
+        run: |
+          KEYSTORE="$HOME/.android/debug.keystore"
+          if [ ! -f "$KEYSTORE" ]; then
+            mkdir -p "$HOME/.android"
+            keytool -genkeypair -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
+              -keystore "$KEYSTORE" -storepass android -keypass android \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+          BUILD_TOOLS=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
+          VERSION="${{ steps.version.outputs.name }}"
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk "dist/RXPlayer-v${VERSION}-debug.apk"
+          "$BUILD_TOOLS/zipalign" -f 4 \
+            app/build/outputs/apk/release/app-release-unsigned.apk "$RUNNER_TEMP/aligned.apk"
+          "$BUILD_TOOLS/apksigner" sign \
+            --ks "$KEYSTORE" --ks-key-alias androiddebugkey \
+            --ks-pass pass:android --key-pass pass:android \
+            --out "dist/RXPlayer-v${VERSION}-release.apk" "$RUNNER_TEMP/aligned.apk"
+          "$BUILD_TOOLS/apksigner" verify --verbose "dist/RXPlayer-v${VERSION}-release.apk"
+      - name: Upload release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: RXPlayer-v${{ steps.version.outputs.name }}-release
+          path: dist/*-release.apk
+          if-no-files-found: error
+          retention-days: 14
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: RXPlayer-android
-          path: app/build/outputs/apk/debug/*.apk
+          name: RXPlayer-v${{ steps.version.outputs.name }}-debug
+          path: dist/*-debug.apk
           if-no-files-found: error
           retention-days: 14
+      - name: Build summary
+        run: |
+          {
+            echo "## RXPlayer v${{ steps.version.outputs.name }}"
+            echo ""
+            echo "| artifact | size |"
+            echo "|---|---|"
+            for f in dist/*.apk; do
+              echo "| $(basename "$f") | $(du -h "$f" | cut -f1) |"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"

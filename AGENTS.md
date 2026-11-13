@@ -236,3 +236,10 @@ After every code change, run `./gradlew installDebug` to compile and install, th
 ### CI 修复 (v1.0.17)
 - 修复 CI 在 `Set up Android SDK` 阶段报 `Warning: Failed to find package 'tools'`、sdkmanager 退出码 1：`android-actions/setup-android@v3` 的 `packages` 默认值是 `tools platform-tools`，legacy `tools` 包已被 Google 从 SDK 仓库下架；两个 job 均显式声明 `packages: ''` 跳过附加包安装（接受 licenses、把 cmdline-tools 加入 PATH 仍由 action 完成）。
 - `sdkmanager` 安装 `platforms;android-36` / `build-tools;35.0.0` 时不再 `> /dev/null`，保留 CI 日志便于后续排查。
+
+### CI release 构建 (v1.0.18)
+- `android` job 改为一次 Gradle 调用同时构建 `assembleDebug assembleRelease`（release 开启 R8，本地已验证通过）；`checks` job 不变（仅 PR/手动跑 `lintDebug`，非阻断）。
+- 版本号单一真源：用 `sed` 从 `app/build.gradle.kts` 提取 `versionName` 写入 `steps.version.outputs.name`，用于 APK 文件名（`RXPlayer-v<version>-debug.apk` / `RXPlayer-v<version>-release.apk`）、两个 artifact 名、以及 `$GITHUB_STEP_SUMMARY` 表格。
+- 项目无正式签名配置，`app-release-unsigned.apk` 无法安装；CI 复用 Gradle 生成的 `~/.android/debug.keystore`（不存在则现场生成同名、同密码 `android`、alias `androiddebugkey` 的 keystore），用 build-tools 里的 `zipalign -f 4` + `apksigner sign` 签名并 `apksigner verify`，产物可直接安装。
+- 注意：CI 临时 keystore 每次构建都不同，跨构建无法覆盖安装升级；如需稳定签名，改为参考项目 huaguoshan 的 GitHub Secrets keystore 方案。
+- `timeout-minutes` 仍为 45（一次构建 debug + release + R8）。
