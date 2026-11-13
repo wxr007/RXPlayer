@@ -30,6 +30,8 @@
 
 每次修改完成后需要在 `app/build.gradle.kts` 中递增 `versionName`（如 1.0.0 → 1.0.1 → 1.0.2）。
 
+同时递增 `versionCode`（与 `versionName` 末位一致，如 1.0.19 → 19）：Android 覆盖安装要求新包 `versionCode` 大于已安装版本，只改 `versionName` 会导致升级失败。
+
 After every code change, run `./gradlew installDebug` to compile and install, then `git add` + `git commit` with a descriptive message. Do not skip compilation or commit unless the user explicitly says otherwise.
 
 每次修改完成后必须将修改提交到 git，并在 AGENTS.md 中记录本次修改的内容摘要。请不要跳过提交步骤。
@@ -243,3 +245,11 @@ After every code change, run `./gradlew installDebug` to compile and install, th
 - 项目无正式签名配置，`app-release-unsigned.apk` 无法安装；CI 复用 Gradle 生成的 `~/.android/debug.keystore`（不存在则现场生成同名、同密码 `android`、alias `androiddebugkey` 的 keystore），用 build-tools 里的 `zipalign -f 4` + `apksigner sign` 签名并 `apksigner verify`，产物可直接安装。
 - 注意：CI 临时 keystore 每次构建都不同，跨构建无法覆盖安装升级；如需稳定签名，改为参考项目 huaguoshan 的 GitHub Secrets keystore 方案。
 - `timeout-minutes` 仍为 45（一次构建 debug + release + R8）。
+
+### CI 固定签名 / 覆盖升级 (v1.0.19)
+- 参照 `huaguoshan` 的四个 Secrets：`ANDROID_KEYSTORE_BASE64`（keystore/JKS 的 Base64）、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD`。
+- `Configure Android signing` 步骤：四个都配置了才生效，Base64 解码到 `$RUNNER_TEMP/release.jks`（`chmod 600`）并置 `SIGNING_MODE=release-secrets`；缺任一密码/别名直接 `::error::` 中断；完全未配置则置 `SIGNING_MODE=ci-debug` 并 `::warning::`，回退临时 debug keystore（该包无法覆盖升级）。
+- `Sign release APK` 步骤按 `SIGNING_MODE` 选择 keystore / alias / 密码，仍走 `zipalign -f 4` + `apksigner sign` + `apksigner verify`；`Remove signing files` 用 `if: always()` 删除 Runner 临时目录里的 keystore；Job Summary 显示签名方式。
+- 未改动 `app/build.gradle.kts` 的构建逻辑，本地无 Secrets 时构建行为不变；密码只通过步骤 `env` 传入，不落盘、不写入 `$GITHUB_ENV`。
+- `versionCode` 从 2 改为 19，并与 `versionName` 末位同步递增（见 Workflow Rule），保证签名一致的前提下覆盖安装不会被 `INSTALL_FAILED_VERSION_DOWNGRADE` 拒绝。
+- 注意：首次切换到固定签名时，已安装的临时签名包需先卸载重装；之后才可覆盖升级。

@@ -14,8 +14,8 @@ android {
         applicationId = "com.rxplayer.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.0.18"
+        versionCode = 19
+        versionName = "1.0.19"
     }
 
     buildTypes {
