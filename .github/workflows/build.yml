@@ -27,10 +27,13 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@v3
+        with:
+          # v3 默认安装已下架的 legacy "tools" 包，会让 sdkmanager 以退出码 1 失败。
+          packages: ''
       - name: Prepare Android SDK
         run: |
           yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager "platforms;android-36" > /dev/null
+          sdkmanager "platforms;android-36"
       - uses: gradle/actions/setup-gradle@v4
       - name: Use official Gradle distribution on CI
         # 仓库 wrapper 指向腾讯云镜像（方便国内开发）；GitHub Runner 上改用官方源，仅修改 Runner 内的副本。
@@ -48,10 +51,13 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@v3
+        with:
+          # v3 默认安装已下架的 legacy "tools" 包，会让 sdkmanager 以退出码 1 失败。
+          packages: ''
       - name: Prepare Android SDK
         run: |
           yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager "platforms;android-36" "build-tools;35.0.0" > /dev/null
+          sdkmanager "platforms;android-36" "build-tools;35.0.0"
       - uses: gradle/actions/setup-gradle@v4
       - name: Use official Gradle distribution on CI
         run: sed -i 's|mirrors.cloud.tencent.com/gradle/|services.gradle.org/distributions/|' gradle/wrapper/gradle-wrapper.properties

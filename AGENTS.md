@@ -232,3 +232,7 @@ After every code change, run `./gradlew installDebug` to compile and install, th
 - CI 内用 `sed` 把 wrapper 的腾讯云 Gradle 镜像临时换成 `services.gradle.org`，只改 Runner 上的副本，仓库 `gradle-wrapper.properties` 保持国内镜像不变。
 - 修正 `gradlew` 的 git 文件模式为 `100755`，保证 Linux Runner 上能直接执行 `./gradlew`。
 - 未包含 release 签名与自动发布 Release（参考项目的 `publish-release.yml` 为独立手动工作流）；如需可后续扩展。
+
+### CI 修复 (v1.0.17)
+- 修复 CI 在 `Set up Android SDK` 阶段报 `Warning: Failed to find package 'tools'`、sdkmanager 退出码 1：`android-actions/setup-android@v3` 的 `packages` 默认值是 `tools platform-tools`，legacy `tools` 包已被 Google 从 SDK 仓库下架；两个 job 均显式声明 `packages: ''` 跳过附加包安装（接受 licenses、把 cmdline-tools 加入 PATH 仍由 action 完成）。
+- `sdkmanager` 安装 `platforms;android-36` / `build-tools;35.0.0` 时不再 `> /dev/null`，保留 CI 日志便于后续排查。
